@@ -1,5 +1,48 @@
 # Integrated backend verification recheck — 2026-11-12
 
+## Full verification now passed
+
+The owner ran the full command below from the normal Ubuntu terminal against
+the integrated worktree. It finished with **BUILD SUCCESS** at
+`2026-11-12T00:48:37+01:00`. The generated Surefire/Failsafe XML reports were also
+read from that worktree and confirm these counts:
+
+| Suite | Tests | Failures | Errors | Skipped |
+| --- | ---: | ---: | ---: | ---: |
+| PasswordPolicyTest | 3 | 0 | 0 | 0 |
+| ProjectRequestParserTest | 9 | 0 | 0 | 0 |
+| ProjectActorTest | 5 | 0 | 0 | 0 |
+| AccountApiIT | 14 | 0 | 0 | 0 |
+| AccountAssignmentsIT | 6 | 0 | 0 | 0 |
+| FoundationsIT | 16 | 0 | 0 | 0 |
+| ProjectApiIT | 41 | 0 | 0 | 0 |
+| **Total** | **94** | **0** | **0** | **0** |
+
+```bash
+cd /run/media/yacine/yassine/DMS/architecture-foundations/backend
+./mvnw -Dmaven.compiler.fork=true \
+  -Dmaven.compiler.executable=/snap/intellij-idea/154/jbr/bin/javac verify
+```
+
+This run downloaded the missing Maven plugin dependencies, packaged the runnable
+Spring Boot jar, connected Testcontainers to Docker 29.9.1, started real PostgreSQL
+16.15 containers, applied and validated V1/V2, and executed the REST/MockMvc,
+authentication/CSRF, permission, concurrency and transactional-audit suites.
+Failsafe reports completed=77, failures=0, errors=0, skipped=0, flakes=0.
+The separate offline contract checks previously passed 13 cases.
+
+Duplicate-reference SQL errors and the deliberately raised `private test SQL
+detail` belong to negative-path tests; they did not fail the build. Hikari also
+logged reconnection warnings from cached test contexts after their class-scoped
+PostgreSQL containers stopped. These warnings did not prevent any suite passing.
+
+The host execution resolves the backend runtime-verification dependency. Agent
+commands remain sandbox-restricted, but that does not invalidate the verified
+host run. Frontend/browser integration, deployment and one-time administrator
+bootstrap are separate checks; they are not claimed by this Maven result.
+
+## Earlier sandbox-only recheck (historical)
+
 Checked the clean integrated `feat/architecture-phase1` worktree at `c446e58`
 in `/run/media/yacine/yassine/DMS/architecture-foundations`.
 
