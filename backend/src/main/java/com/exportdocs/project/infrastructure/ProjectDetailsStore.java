@@ -34,6 +34,13 @@ public class ProjectDetailsStore {
                 Boolean.class, project, actor.id()));
     }
 
+    public boolean canEditSetup(UUID project,ProjectActor actor) {
+        return actor.admin() || Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM project_form_assignment
+                WHERE project_id=? AND user_id=? AND form_key='PROJECT_SETUP')
+                """,Boolean.class,project,actor.id()));
+    }
+
     public void validate(ProjectFields fields, Set<String> supplied) {
         var errors = new ArrayList<ProjectProblem.FieldError>();
         for (var entry : partyValues(fields).entrySet()) {

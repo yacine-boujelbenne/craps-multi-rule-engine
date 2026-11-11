@@ -18,6 +18,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -59,6 +60,15 @@ public class ProjectErrorHandler extends ResponseEntityExceptionHandler {
     ResponseEntity<ProblemDetail> unexpected(Exception exception, HttpServletRequest request) {
         LOG.error("Project request failed: {} {}", request.getMethod(), request.getRequestURI(), exception);
         return response(500, "The request could not be completed.", List.of(), request.getRequestURI());
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
+            HttpHeaders headers,HttpStatusCode status,WebRequest request) {
+        var errors=exception.getBindingResult().getFieldErrors().stream().map(error->
+                new ProjectProblem.FieldError(error.getField(),"invalid",error.getDefaultMessage())).toList();
+        return new ResponseEntity<>(problem(400,"Request validation failed.",errors,
+                request.getDescription(false).replaceFirst("^uri=","")),headers,status);
     }
 
     @Override

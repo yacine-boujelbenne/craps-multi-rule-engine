@@ -35,6 +35,7 @@ public class ProjectService {
     @Transactional
     public ProjectResponse create(ProjectWrite request) {
         ProjectActor actor = authorize(true);
+        if(!actor.admin()) throw new ProjectProblem(403,"Only administrators can create projects.",List.of());
         validate(request);
         details.auditContext(actor.id());
         var fields = request.fields();
@@ -57,6 +58,7 @@ public class ProjectService {
         if (!details.visible(id, actor)) throw ProjectProblem.notFound();
         // Serialize child-row replacements before checking the client's version.
         var project = projects.findForUpdate(id).orElseThrow(ProjectProblem::notFound);
+        if(!details.canEditSetup(id,actor)) throw new ProjectProblem(403,"Project setup edit assignment required.",List.of());
         if (!project.getVersion().equals(request.expectedVersion())) {
             throw ProjectProblem.field(409, "expectedVersion", "stale_version", "Project changed; reload it before updating.");
         }
