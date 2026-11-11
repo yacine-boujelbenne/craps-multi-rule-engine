@@ -1,0 +1,19 @@
+{
+  "id": "00000000-0000-0000-0000-000000000100",
+  "reference": "DEMO-001",
+  "version": 0,
+  "status": "DRAFT_DATA",
+  "exporterId": null,
+  "producerIds": [],
+  "consigneeId": null,
+  "notifyPartyId": null,
+  "freightForwarderId": null,
+  "shippingLineId": null,
+  "destinationCountryCode": null,
+  "portOfLoadingId": null,
+  "portOfDischargeId": null,
+  "expectedDepartureDate": null,
+  "notes": null,
+  "createdAt": "2026-11-11T12:00:00Z",
+  "updatedAt": "2026-11-11T12:00:00Z"
+}
