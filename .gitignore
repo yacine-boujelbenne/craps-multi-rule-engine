@@ -1,0 +1,11 @@
+node_modules/
+target/
+build/
+dist/
+.angular/
+.idea/
+.vscode/
+*.log
+.env
+uploads/
+.maestro/history/
