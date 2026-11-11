@@ -9,3 +9,7 @@ Reviewed the uncommitted project module, ProjectApiIT, ProjectRequestParserTest 
 The reviewed write path otherwise appears aligned with V1: nullable initial JPA @Version, project lock before replacing children, aggregate touch for child-only changes, transaction-local actor context, role-qualified party lookups, principal-to-active-user mapping and database roles/access checks. No obvious compilation error was identified by inspection; this is not a successful build or an approval of runtime behavior. JWT tests using jwt() do not exercise actual signature/issuer/audience validation.
 
 At review publication, findings were handed to Agent 2 for correction and verification; fixes are not yet independently verified here.
+
+## Follow-up: corrections checked in source
+
+Agent 2 subsequently changed get/list to explicit REPEATABLE_READ and added a latch-controlled reader/writer integration test that commits a child/port PATCH between root and detail reads. The parser now requires canonical hyphenated UUID text for scalar IDs and producer arrays, plus YYYY-MM-DD text before date binding. Added parser tests reject empty, whitespace and Base64 values. These specific changes were inspected read-only and address findings 1 and 2 at the source level. Their regression tests still have not compiled or executed. Agent 2 reported that the stale implementation handoff was being rewritten; that documentation rewrite was not yet verified during this follow-up.
