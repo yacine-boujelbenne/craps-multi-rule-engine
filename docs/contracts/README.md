@@ -1,6 +1,6 @@
 # Phase 1 contracts
 
-**Access update:** the owner now requires internal admin-managed accounts and per-form editing. `projects-v2.yaml` and `accounts-access-v1.yaml` are the stable target contracts for that change; implementation is pending with Agent 2. See `../architecture/ACCESS-MODEL.md`. The existing v1 artifact is preserved for compatibility/history.
+**Access update:** the owner now requires internal admin-managed accounts and per-form editing. `projects-v2.yaml` and `accounts-access-v1.yaml` are the stable target contracts for that change; Agent 2's implementation is integrated in source; full runtime verification remains open. See `../architecture/ACCESS-MODEL.md`. The existing v1 artifact is preserved for compatibility/history.
 
 `projects-v1.yaml` is the previous OpenAPI 3.0.3 input for Agent 2 and Angular client generation. Agent 2's implementation of these endpoints is integrated on feat/architecture-phase1; its source and tests have been reviewed but full build/runtime verification remains blocked. Reference-only creation was confirmed by the owner on 2026-11-11. Initial status is `DRAFT_DATA`, aligning with Agent 2's explicit assignment; this replaces the older plan's `DRAFT` spelling. The other status names follow the master plan. Status transitions are deferred.
 
@@ -28,7 +28,7 @@ All party IDs reference `organization.id`. An organization may have several `org
 
 ## Create transaction
 
-1. Require authenticated ADMIN/OPERATOR; obtain the user ID from the trusted principal, never the JSON body.
+1. For the current v2 contract, require authenticated ADMIN for creation (operator setup edits require PROJECT_SETUP); obtain the user ID from the trusted principal, never the JSON body.
 2. Trim and uppercase `reference` with Locale.ROOT, then validate the documented ASCII pattern and length. Reject unknown fields. Only reference is mandatory; do not require parties, dates, ports, containers, seals, or locks to save a draft.
 3. Resolve any supplied active organizations/roles and ports; report missing/incompatible references as 422 Problem Details with field errors.
 4. Insert project (`DRAFT_DATA`, version 0, created_by current user), optional project_party rows and exactly one shipment_transport row (PK = project ID, shared shipment identity).
@@ -45,4 +45,4 @@ Page numbers are zero-based; size defaults to 20, max 100. Optional status and l
 
 ## Deliberate scope limits
 
-Directory CRUD and seed users are not implemented here. Frontend needs authorized directory lookups or fictional development fixtures from Agent 2; never embed real customer data. The integrated business API requires a validated JWT and a provisioned active application user. With no trusted issuer configured, all business tokens are rejected. This contract does not supply a JWT issuer. It does not implement workflow transitions, document generation, imports, or OCR.
+Directory CRUD and seed users are not implemented here. Frontend needs authorized directory lookups or fictional development fixtures from Agent 2; never embed real customer data. The integrated v2 business API requires local session authentication and an active application account. Administrators bootstrap/create accounts and assign project/form access. No external JWT issuer is required. Follow `../../backend/ACCOUNTS-IMPLEMENTATION-HANDOFF.md`; v1 remains the historical bearer-auth contract. It does not implement workflow transitions, document generation, imports, or OCR.

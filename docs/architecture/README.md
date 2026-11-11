@@ -1,6 +1,6 @@
 # Phase 1 architecture foundations
 
-This branch now combines the architect's database/bootstrap with Agent 2's Project REST implementation. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions and an identity provider remain outside this delivery. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Runtime acceptance remains open.
+This branch now combines the architect's database/bootstrap with Agent 2's Project REST and internal-account/assignment implementations. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions remain outside this delivery; internal account/session authentication is included in source. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Runtime acceptance remains open.
 
 ## Layout and decisions
 
@@ -27,12 +27,12 @@ UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mas
 
 Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. Dependency download/build is unverified in this restricted environment; see VALIDATION.md. Review support/security patch policy before production deployment.
 
-## The 24 tables and why they exist
+## The 26 tables and why they exist
 
 | Module | Tables | Purpose and important links |
 |---|---|---|
-| Identity | app_user, role_assignment | Trusted external subject maps to one user UUID; ADMIN/OPERATOR/REVIEWER/VIEWER are application roles, independent of company roles. No passwords or seed credentials. |
-| Project access | project_access | User/project membership; access filtering belongs in the service/repository query before pagination. |
+| Identity | app_user, role_assignment, local_account | Internal users/roles and separate hashed credentials; external_subject is optional legacy mapping. No default accounts or plaintext passwords. |
+| Project access | project_access, project_form_assignment | Membership grants shipment-wide read access; named form grants add operator editing. Services enforce both. |
 | Directory | organization, organization_role | Company/partner identity plus any number of business roles. No exclusive company type. |
 | Locations | port | Shared port name, country, optional unique UN/LOCODE; referenced by transport. |
 | Products | product, product_category | Product/species/HS information and configurable box-size grades per product. Category is not a species. |
@@ -98,7 +98,7 @@ The fictional test uses 22,000 input -> 19,200 finished + 2,800 other accounted 
 
 Two variants are supported: UNSIGNED_FOR_SIGNATURE and CLIENT_PREVIEW. Metadata cannot prove the absence of graphics or presence of page watermarks; future rendering tests must verify every page. No generated record represents official external issuance. Authorized external originals/approval records need a later, separate model. Template/version rows reject UPDATE/DELETE; ordinary application roles must not receive TRUNCATE/DDL privileges. Storage keys are private internal references, never public URLs. Artifact bytes/storage and retention are not implemented in Phase 1.
 
-Audit triggers run for all 23 non-audit business tables after installation and record changes in the same transaction. The static document-type bootstrap is installed before those triggers. Set transaction-local app.actor_id and app.request_id on the transaction's JDBC connection, as specified in the contract. API writes must set a trusted actor; maintenance without an actor is explicitly SYSTEM. Project.version/updated_at increments remain the application service's responsibility, including child changes; audit triggers do not increment them repeatedly per row. No hard-delete project endpoint: soft archive preserves references/history.
+V1 audit triggers cover its 23 non-audit tables. V2 adds form-assignment auditing and a dedicated credential audit that removes password_hash; all records share the business transaction. The static document-type bootstrap is installed before those triggers. Set transaction-local app.actor_id and app.request_id on the transaction's JDBC connection, as specified in the contract. API writes must set a trusted actor; maintenance without an actor is explicitly SYSTEM. Project.version/updated_at increments remain the application service's responsibility, including child changes; audit triggers do not increment them repeatedly per row. No hard-delete project endpoint: soft archive preserves references/history.
 
 ## Project creation and handoff
 
