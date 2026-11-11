@@ -1,6 +1,6 @@
 # Phase 1 validation and delivery — 2026-11-11
 
-**Integrated source implementation prepared; runtime acceptance remains open.** PostgreSQL startup, migration execution, Java compilation, application startup and integration tests have not passed in this environment. No playbook completion boxes were changed.
+**Compilation and 17 unit tests are now verified; PostgreSQL/runtime acceptance remains open.** All 37 main and 7 test sources compile for Java 21, including MapStruct generation. PostgreSQL startup, migration execution, application startup, HTTP session/CSRF behavior and integration tests remain unverified. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md` for the latest evidence; older failed/uncompiled entries below are historical. No playbook completion boxes were changed.
 
 ## Environment and executed checks
 
@@ -106,3 +106,9 @@ Added V2__local_accounts_and_form_assignments.sql, AccountAssignmentsIT (six Pos
 Imported Agent 2 dc058f9/f78e83e as 52f1e3a/2ec067d without conflicts. The integrated source now supports local admin-managed accounts, session login/logout/change-password, explicit headless first-admin bootstrap, CSRF and admin-managed operator/form assignments. Project creation is ADMIN-only; operator setup edits require PROJECT_SETUP. Other form-content endpoints/UI are not delivered by this slice. Runtime acceptance remains open.
 
 On the combined tree, 13 offline contract checks, Compose/configuration parsing and git diff checks pass; migration and frontend content checks show no integration changes. Agent 2 reports 8 isolated cached-JUnit tests passed and release-21 Java syntax parsing; this is not a Spring build. The 14 AccountApiIT cases, updated ProjectApiIT and PostgreSQL schema suites remain unexecuted because Maven parent resolution and Docker access are blocked. The supported Java 21 runtime gate is also outstanding. Current file/API/auth/bootstrap inventory is `../../backend/ACCOUNTS-IMPLEMENTATION-HANDOFF.md`. Older JWT/pending implementation notes above describe historical stages and are superseded by this entry.
+
+## Successful compile/unit recheck — 2026-11-12
+
+Imported Agent 2 verification report 25e8579 after inspecting its commands and the integrated worktree's generated MapStruct sources/main and test class files. Confirmed Java 21.0.13.0.3 and Maven 3.9.12 are now on PATH. The recheck was run against unchanged integrated c446e58: all 37 main and 7 test sources compile with release 21; 17 compiled JUnit tests passed on Java 21 (9 parser, 5 actor, 3 password-policy tests), using the cached Jupiter engine directly. The 13 offline contract checks also pass. No source changes were needed.
+
+This supersedes earlier uncompiled/Java-21-unavailable statements. Standard Maven verify remains blocked by incomplete Surefire/jar-plugin metadata and DNS; Docker socket access remains denied. The installed Java 21 is a runtime without javac, so compilation used the bundled IntelliJ compiler with --release 21. No PostgreSQL/Flyway/HTTP integration acceptance is claimed. Exact command and temporary-runner location are preserved in `../../backend/VERIFICATION-RECHECK-2026-11-12.md`.
