@@ -1,0 +1,11 @@
+#!/bin/sh
+# Thin launcher: requires installed Maven 3.6.3+. This is not a downloading wrapper.
+set -eu
+if [ -n "${MAVEN_COMMAND:-}" ]; then
+    exec "$MAVEN_COMMAND" "$@"
+fi
+if command -v mvn >/dev/null 2>&1; then
+    exec mvn "$@"
+fi
+printf '%s\n' 'Maven is unavailable. Install Maven 3.6.3+ or set MAVEN_COMMAND to its executable.' >&2
+exit 127
