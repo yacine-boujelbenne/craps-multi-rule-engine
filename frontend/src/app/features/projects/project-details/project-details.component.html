@@ -1,0 +1,192 @@
+@if (loading()) {
+  <div class="detail-skeleton" aria-busy="true" aria-label="Loading project">
+    <span class="skeleton skeleton--lg"></span>
+    <div class="detail-skeleton__grid">
+      <span class="skeleton detail-skeleton__block"></span>
+      <span class="skeleton detail-skeleton__block"></span>
+    </div>
+  </div>
+} @else if (error()) {
+  <div class="table-card">
+    <app-empty-state icon="alert" title="Project unavailable" [message]="error() ?? ''">
+      <a class="btn btn--ghost" routerLink="/projects">
+        <app-icon name="arrow-left" [size]="18" />
+        Back to projects
+      </a>
+    </app-empty-state>
+  </div>
+} @else if (project(); as p) {
+  <app-page-header
+    [title]="p.reference"
+    [subtitle]="p.consignee.name + ' · ' + p.destination"
+    [breadcrumbs]="[{ label: 'Projects', link: '/projects' }, { label: p.reference }]"
+  >
+    <a class="btn btn--ghost" routerLink="/projects">
+      <app-icon name="arrow-left" [size]="18" />
+      Back
+    </a>
+  </app-page-header>
+
+  <div class="detail">
+    <div class="detail__main">
+      <app-panel title="Shipment overview">
+        <div class="facts">
+          <div class="fact">
+            <span class="fact__label">Status</span>
+            <app-status-badge
+              [label]="projectStatusMeta[p.status].label"
+              [tone]="projectStatusMeta[p.status].tone"
+            />
+          </div>
+          <div class="fact">
+            <span class="fact__label">Destination</span>
+            <span class="fact__value">{{ p.destination }}</span>
+          </div>
+          <div class="fact">
+            <span class="fact__label">Loading port</span>
+            <span class="fact__value">{{ p.loadingPort }}</span>
+          </div>
+          <div class="fact">
+            <span class="fact__label">Discharge port</span>
+            <span class="fact__value">{{ p.dischargePort }}</span>
+          </div>
+          <div class="fact">
+            <span class="fact__label">ETD</span>
+            <span class="fact__value">
+              {{ formatDate(p.etd) }}
+              <small class="fact__hint">{{ relativeToToday(p.etd) }}</small>
+            </span>
+          </div>
+          <div class="fact">
+            <span class="fact__label">Created</span>
+            <span class="fact__value">{{ formatDate(p.createdAt) }}</span>
+          </div>
+        </div>
+      </app-panel>
+
+      <app-panel
+        title="Document workflow"
+        subtitle="Chronological steps. Forms are added in a later milestone."
+      >
+        <div class="progress" role="group" aria-label="Document progress">
+          <div class="progress__bar">
+            <span class="progress__fill" [style.width.%]="progressPercent()"></span>
+          </div>
+          <span class="progress__label">
+            {{ completedSteps() }} of {{ steps.length }} steps ready
+          </span>
+        </div>
+
+        <ol class="steps">
+          @for (key of steps; track key; let i = $index) {
+            <li class="step" [class.step--done]="isStepDone(key)">
+              <button type="button" class="step__btn" (click)="openStep(key)">
+                <span class="step__index" aria-hidden="true">
+                  @if (isStepDone(key)) {
+                    <app-icon name="check" [size]="15" />
+                  } @else {
+                    {{ i + 1 }}
+                  }
+                </span>
+                <span class="step__body">
+                  <span class="step__label">{{ stepLabels[key] }}</span>
+                  <span class="step__desc">{{ stepDescriptions[key] }}</span>
+                </span>
+                <span class="step__status">
+                  <app-status-badge
+                    [label]="docStatusMeta[stepStatus(key)].label"
+                    [tone]="docStatusMeta[stepStatus(key)].tone"
+                  />
+                  <span class="step__soon">Soon</span>
+                </span>
+              </button>
+            </li>
+          }
+        </ol>
+      </app-panel>
+
+      <app-panel title="Business partners">
+        <div class="partners">
+          @for (partner of partners(); track partner.label) {
+            <div class="partner">
+              <span class="partner__icon">
+                <app-icon [name]="partner.icon" [size]="16" />
+              </span>
+              <div class="partner__body">
+                <span class="partner__label">{{ partner.label }}</span>
+                <span class="partner__name">{{ partner.party.name }}</span>
+                @if (partner.party.country) {
+                  <span class="partner__country">{{ partner.party.country }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </app-panel>
+    </div>
+
+    <aside class="detail__aside">
+      <app-panel title="Project status">
+        <div class="status-summary">
+          <span class="status-summary__avatar">{{ initials(p.consignee.name) }}</span>
+          <app-status-badge
+            [label]="projectStatusMeta[p.status].label"
+            [tone]="projectStatusMeta[p.status].tone"
+          />
+          <p class="status-summary__hint">
+            {{ completedSteps() }} of {{ steps.length }} document steps ready
+          </p>
+        </div>
+      </app-panel>
+
+      <app-panel title="Logistics">
+        <dl class="meta-list">
+          <div class="meta-list__row">
+            <dt>Destination</dt>
+            <dd>{{ p.destination }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Loading port</dt>
+            <dd>{{ p.loadingPort }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Discharge port</dt>
+            <dd>{{ p.dischargePort }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>ETD</dt>
+            <dd>
+              {{ formatDate(p.etd) }}
+              <small class="meta-list__hint">{{ relativeToToday(p.etd) }}</small>
+            </dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Shipping line</dt>
+            <dd>{{ p.shippingLine.name }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Forwarder</dt>
+            <dd>{{ p.freightForwarder.name }}</dd>
+          </div>
+        </dl>
+      </app-panel>
+
+      <app-panel title="Record">
+        <dl class="meta-list">
+          <div class="meta-list__row">
+            <dt>Created</dt>
+            <dd>{{ formatDateTime(p.createdAt) }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Last updated</dt>
+            <dd>{{ formatDateTime(p.updatedAt) }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Project ID</dt>
+            <dd class="mono meta-list__id">{{ p.id }}</dd>
+          </div>
+        </dl>
+      </app-panel>
+    </aside>
+  </div>
+}

@@ -1,0 +1,190 @@
+<app-page-header
+  title="New project"
+  subtitle="Create a shipment project. All fields marked with * are required."
+  [breadcrumbs]="[{ label: 'Projects', link: '/projects' }, { label: 'New project' }]"
+/>
+
+<form #projectForm class="project-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="project-form__sections">
+    <app-panel
+      title="Project reference"
+      subtitle="A unique human-readable identifier for the shipment."
+    >
+      <div class="field" style="max-width: 360px">
+        <label class="field__label" for="reference">
+          Project reference <span class="req">*</span>
+        </label>
+        <input
+          id="reference"
+          class="control mono"
+          type="text"
+          formControlName="reference"
+          placeholder="EXP-2026-0001"
+          autocomplete="off"
+          [attr.aria-invalid]="showError('reference')"
+          [attr.aria-describedby]="'reference-hint'"
+        />
+        @if (showError('reference')) {
+          <span class="field__error" role="alert">
+            @if (form.controls.reference.hasError('required')) {
+              Reference is required.
+            } @else if (form.controls.reference.hasError('pattern')) {
+              Use the format EXP-YYYY-NNNN (e.g. EXP-2026-0001).
+            }
+          </span>
+        } @else {
+          <span class="field__hint" id="reference-hint">
+            Suggested automatically from existing projects; edit if needed.
+          </span>
+        }
+      </div>
+    </app-panel>
+
+    <app-panel
+      title="Business partners"
+      subtitle="Exporter and producer may differ. The notify party may differ from the consignee."
+    >
+      <div class="partners">
+        <app-party-field
+          id="exporter"
+          label="Exporter"
+          icon="building"
+          [group]="party('exporter')"
+        />
+        <app-party-field
+          id="producer"
+          label="Producer"
+          icon="factory"
+          [group]="party('producer')"
+        />
+        <app-party-field
+          id="consignee"
+          label="Consignee"
+          icon="users"
+          [group]="party('consignee')"
+        />
+        <app-party-field
+          id="notify"
+          label="Notify party"
+          icon="bell"
+          [group]="party('notifyParty')"
+        />
+        <app-party-field
+          id="forwarder"
+          label="Freight forwarder"
+          icon="truck"
+          [group]="party('freightForwarder')"
+        />
+        <app-party-field
+          id="shipping-line"
+          label="Shipping line"
+          icon="anchor"
+          [group]="party('shippingLine')"
+        />
+      </div>
+
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="notifySameAsConsignee()"
+          (change)="onNotifyToggle($any($event.target).checked)"
+        />
+        <span>Notify party is the same as the consignee</span>
+      </label>
+    </app-panel>
+
+    <app-panel
+      title="Routing &amp; schedule"
+      subtitle="Destination, ports and the estimated time of departure."
+    >
+      <div class="routing">
+        <div class="field">
+          <label class="field__label" for="destination"
+            >Destination <span class="req">*</span></label
+          >
+          <input
+            id="destination"
+            class="control"
+            type="text"
+            formControlName="destination"
+            placeholder="e.g. Spain — Vigo"
+            [attr.aria-invalid]="showError('destination')"
+          />
+          @if (showError('destination')) {
+            <span class="field__error" role="alert">Destination is required.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="loadingPort"
+            >Loading port <span class="req">*</span></label
+          >
+          <input
+            id="loadingPort"
+            class="control"
+            type="text"
+            formControlName="loadingPort"
+            placeholder="e.g. Tanger Med"
+            [attr.aria-invalid]="showError('loadingPort')"
+          />
+          @if (showError('loadingPort')) {
+            <span class="field__error" role="alert">Loading port is required.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="dischargePort">
+            Discharge port <span class="req">*</span>
+          </label>
+          <input
+            id="dischargePort"
+            class="control"
+            type="text"
+            formControlName="dischargePort"
+            placeholder="e.g. Vigo"
+            [attr.aria-invalid]="showError('dischargePort')"
+          />
+          @if (showError('dischargePort')) {
+            <span class="field__error" role="alert">Discharge port is required.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="etd">
+            Estimated time of departure (ETD) <span class="req">*</span>
+          </label>
+          <input
+            id="etd"
+            class="control"
+            type="date"
+            formControlName="etd"
+            [min]="today"
+            [attr.aria-invalid]="showError('etd')"
+          />
+          @if (showError('etd')) {
+            <span class="field__error" role="alert">
+              @if (form.controls.etd.hasError('required')) {
+                ETD is required.
+              } @else if (form.controls.etd.hasError('pastDate')) {
+                ETD cannot be in the past.
+              }
+            </span>
+          }
+        </div>
+      </div>
+    </app-panel>
+  </div>
+
+  <div class="project-form__actions">
+    <a class="btn btn--ghost" routerLink="/projects">Cancel</a>
+    <button class="btn btn--primary" type="submit" [disabled]="submitting()">
+      @if (submitting()) {
+        <span class="spinner" aria-hidden="true"></span>
+        Creating…
+      } @else {
+        <app-icon name="check" [size]="18" />
+        Create project
+      }
+    </button>
+  </div>
+</form>

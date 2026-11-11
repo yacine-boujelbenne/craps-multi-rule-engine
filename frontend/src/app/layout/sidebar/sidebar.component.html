@@ -1,0 +1,48 @@
+<aside class="sidebar" [class.sidebar--open]="open()">
+  <a class="sidebar__brand" routerLink="/dashboard" (click)="navigate.emit()">
+    <span class="sidebar__logo" aria-hidden="true">
+      <app-icon name="ship" [size]="20" />
+    </span>
+    <span class="sidebar__brand-text">
+      <strong>ExportDocs</strong>
+      <small>Shipment workspace</small>
+    </span>
+  </a>
+
+  <nav class="sidebar__nav" aria-label="Primary">
+    <p class="sidebar__group-label">Workspace</p>
+    @for (item of primaryNav; track item.label) {
+      <a
+        class="sidebar__link"
+        [routerLink]="item.link"
+        routerLinkActive="sidebar__link--active"
+        (click)="navigate.emit()"
+      >
+        <app-icon [name]="item.icon" [size]="18" />
+        <span>{{ item.label }}</span>
+      </a>
+    }
+
+    <p class="sidebar__group-label">Configuration</p>
+    @for (item of secondaryNav; track item.label) {
+      <span class="sidebar__link sidebar__link--disabled" aria-disabled="true">
+        <app-icon [name]="item.icon" [size]="18" />
+        <span>{{ item.label }}</span>
+        <span class="sidebar__soon">Soon</span>
+      </span>
+    }
+  </nav>
+
+  <div class="sidebar__footer">
+    @if (isMock) {
+      <div class="sidebar__demo">
+        <span class="sidebar__demo-dot" aria-hidden="true"></span>
+        Demo data — mock API
+      </div>
+    }
+    <div class="sidebar__hint">
+      <app-icon name="alert" [size]="16" />
+      <p>Manual data entry. PDF generation arrives in a later milestone.</p>
+    </div>
+  </div>
+</aside>

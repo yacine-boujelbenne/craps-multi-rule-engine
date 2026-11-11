@@ -1,1 +1,144 @@
-/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+@use './styles/tokens';
+@use './styles/mixins' as mx;
+@use './styles/components';
+
+html {
+  color-scheme: light;
+
+  // Angular Material 3 theme (azure primary is closest to the brand blue).
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: (
+        plain-family:
+          'Inter, Instrument Sans, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+        brand-family:
+          'Inter, Instrument Sans, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+      ),
+      density: 0,
+    )
+  );
+
+  // Map the generated Material system tokens onto the brand palette.
+  --mat-sys-primary: var(--color-accent-strong);
+  --mat-sys-on-primary: var(--color-accent-contrast);
+  --mat-sys-primary-container: var(--color-accent-soft);
+  --mat-sys-on-primary-container: var(--color-accent-ink);
+  --mat-sys-surface: var(--color-surface);
+  --mat-sys-on-surface: var(--color-ink);
+  --mat-sys-outline: var(--color-border-strong);
+  --mat-sys-outline-variant: var(--color-border);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+a {
+  color: var(--color-accent-strong);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+:focus-visible {
+  @include mx.focus-ring;
+}
+
+// Consistent, unobtrusive scrollbars.
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+// Utility classes used across feature templates.
+.text-muted {
+  color: var(--color-muted);
+}
+
+.mono {
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Material density / shape alignment with the design system.
+.mat-mdc-card {
+  border-radius: var(--radius-md);
+}
+
+.mat-mdc-snack-bar-container {
+  --mat-snack-bar-container-shape: var(--radius-sm);
+}
+
+// Notification toasts (MatSnackBar panelClass).
+.app-toast {
+  --mdc-snackbar-container-color: var(--color-ink);
+  --mdc-snackbar-supporting-text-color: #fff;
+  --mat-snack-bar-button-color: #fff;
+}
+
+.app-toast--success {
+  --mdc-snackbar-container-color: var(--color-success);
+}
+
+.app-toast--error {
+  --mdc-snackbar-container-color: var(--color-danger);
+}
+
+.app-toast--info {
+  --mdc-snackbar-container-color: var(--color-accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

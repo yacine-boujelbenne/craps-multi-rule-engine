@@ -1,59 +1,95 @@
-# Frontend
+# ExportDocs — Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.5.
+Angular front end for the seafood export documentation platform. This milestone
+delivers the application shell, dashboard, project creation, project listing and
+the project workspace (with document-step placeholders).
 
-## Development server
+## Stack
 
-To start a local development server, run:
+- Angular 22 (standalone components, signals, zoneless)
+- TypeScript (strict)
+- Angular Reactive Forms
+- Angular Material 3 (thin custom theme) + Angular CDK
+- SCSS with a CSS custom-property token layer
+- Vitest (via `@angular/build:unit-test`)
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Commands
 
 ```bash
-ng generate --help
+npm install
+npm start          # dev server on http://localhost:4200
+npm run build      # production build
+npm test           # unit tests (watch)
+npm run test:ci    # unit tests (single run)
+npm run format     # prettier
+npm run gen:api    # regenerate the typed client from the backend OpenAPI spec
 ```
 
-## Building
+## Folder structure
 
-To build the project run:
-
-```bash
-ng build
+```
+src/
+  app/
+    core/            cross-cutting, framework-light code
+      config/        runtime configuration (API base URL, mock toggle)
+      data/          anonymized mock fixtures
+      models/        typed domain interfaces + status metadata
+      services/      ProjectService contract, mock + HTTP impls, store, notifications
+      utils/         formatting helpers
+    layout/          app shell, sidebar, topbar
+    shared/          reusable presentational components (icon, panel, badges…)
+    features/
+      dashboard/
+      projects/      project-list, project-form, project-details
+      not-found/
+  styles/            design tokens, mixins, shared component classes
+  styles.scss        global styles + Angular Material theme
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Feature folders follow `AGENTS.md` (`src/app/features/<feature>`).
 
-## Running unit tests
+## API integration
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+`core/services/project.service.ts` defines the transport-agnostic `ProjectService`
+contract and a `PROJECT_SERVICE` injection token. Endpoints follow the
+representative API in `docs/MASTER-PLAN.md` §10:
 
-```bash
-ng test
+| Operation | HTTP |
+|---|---|
+| List projects | `GET /api/projects` |
+| Get project | `GET /api/projects/{id}` |
+| Create project | `POST /api/projects` |
+| Update project | `PATCH /api/projects/{id}` |
+
+Two implementations exist:
+
+- `ProjectMockService` — isolated in-memory implementation seeded from
+  anonymized fixtures (`core/data/mock-projects.ts`). It persists to
+  `localStorage` so created projects survive a reload. **This is active by default.**
+- `ProjectApiService` — real `HttpClient` implementation for the endpoints above.
+
+Switch between them in `core/config/app-config.ts`:
+
+```ts
+export const APP_CONFIG = {
+  apiBaseUrl: '/api',
+  useMockApi: true, // set to false once the backend contract is frozen
+};
 ```
 
-## Running end-to-end tests
+When the backend publishes its OpenAPI document, run `npm run gen:api` to
+generate typed schemas into `src/app/core/api/schema.d.ts` and map them onto the
+interfaces in `core/models`.
 
-For end-to-end (e2e) testing, run:
+## Design system
 
-```bash
-ng e2e
-```
+Tokens live in `src/styles/_tokens.scss` (Lucent-inspired: `#FAFAFA` canvas,
+`#1F2022` ink, `#61A6F6` accent, `#A4A4A4` muted, plus accessible semantic
+states). Spacing is on a 4/8/12/16/24/32 scale; radii are 8/12/16px. Motion is
+restrained (120–180ms) and respects `prefers-reduced-motion`.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Testing
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Unit tests cover formatting utilities, the mock service, the create-project form
+(validation, submit, notify-party convenience), the project list (rendering and
+filtering) and the dashboard. Run `npm run test:ci`.

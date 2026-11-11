@@ -1,0 +1,121 @@
+<app-page-header title="Projects" subtitle="Every project represents exactly one shipment.">
+  <a class="btn btn--primary" routerLink="/projects/new">
+    <app-icon name="plus" [size]="18" />
+    New project
+  </a>
+</app-page-header>
+
+@if (error()) {
+  <div class="alert alert--error" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ error() }}</span>
+  </div>
+}
+
+<div class="toolbar">
+  <label class="toolbar__search">
+    <span class="sr-only">Search projects</span>
+    <app-icon name="search" [size]="18" />
+    <input
+      type="search"
+      placeholder="Search by reference, customer or destination…"
+      [ngModel]="searchTerm()"
+      (ngModelChange)="searchTerm.set($event)"
+    />
+  </label>
+
+  <label class="toolbar__filter">
+    <span class="sr-only">Filter by status</span>
+    <app-icon name="sliders" [size]="16" />
+    <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+      @for (option of statusOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </label>
+
+  <span class="toolbar__count">
+    {{ filteredProjects().length }}
+    {{ filteredProjects().length === 1 ? 'project' : 'projects' }}
+  </span>
+</div>
+
+@if (loading() && !loaded()) {
+  <div class="table-card" aria-busy="true" aria-label="Loading projects">
+    <div class="skeleton-table">
+      @for (row of [1, 2, 3, 4, 5, 6]; track row) {
+        <div class="skeleton-row">
+          <span class="skeleton skeleton--md"></span>
+          <span class="skeleton skeleton--md"></span>
+          <span class="skeleton skeleton--sm"></span>
+          <span class="skeleton skeleton--sm"></span>
+        </div>
+      }
+    </div>
+  </div>
+} @else if (filteredProjects().length === 0) {
+  <div class="table-card">
+    <app-empty-state
+      icon="folder"
+      [title]="hasFilters() ? 'No matching projects' : 'No projects yet'"
+      [message]="
+        hasFilters()
+          ? 'Try a different search term or clear the filters.'
+          : 'Create your first shipment project to start building the documentation file.'
+      "
+    >
+      @if (hasFilters()) {
+        <button type="button" class="btn btn--ghost" (click)="clearFilters()">Clear filters</button>
+      } @else {
+        <a class="btn btn--primary" routerLink="/projects/new">
+          <app-icon name="plus" [size]="18" />
+          New project
+        </a>
+      }
+    </app-empty-state>
+  </div>
+} @else {
+  <div class="table-card">
+    <table class="projects-table">
+      <caption class="sr-only">
+        List of shipment projects
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Reference</th>
+          <th scope="col">Customer</th>
+          <th scope="col">Destination</th>
+          <th scope="col">ETD</th>
+          <th scope="col">Status</th>
+          <th scope="col">Created</th>
+          <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (project of filteredProjects(); track project.id) {
+          <tr>
+            <td data-label="Reference">
+              <a class="ref" [routerLink]="['/projects', project.id]">{{ project.reference }}</a>
+            </td>
+            <td data-label="Customer">{{ project.consignee.name }}</td>
+            <td data-label="Destination">{{ project.destination }}</td>
+            <td data-label="ETD">{{ formatDate(project.etd) }}</td>
+            <td data-label="Status">
+              <app-status-badge
+                [label]="statusMeta(project.status).label"
+                [tone]="statusMeta(project.status).tone"
+              />
+            </td>
+            <td data-label="Created" class="cell-muted">{{ formatDate(project.createdAt) }}</td>
+            <td data-label="Actions" class="col-actions">
+              <a class="row-action" [routerLink]="['/projects', project.id]">
+                Open
+                <app-icon name="chevron-right" [size]="16" />
+              </a>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

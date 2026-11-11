@@ -6,15 +6,20 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:ci": "ng test --no-watch",
+    "format": "prettier --write \"src/**/*.{ts,html,scss}\"",
+    "gen:api": "npx --yes openapi-typescript http://localhost:8080/v3/api-docs -o src/app/core/api/schema.d.ts"
   },
   "private": true,
   "packageManager": "npm@10.9.9",
   "dependencies": {
+    "@angular/cdk": "^22.2.7",
     "@angular/common": "^22.2.0",
     "@angular/compiler": "^22.2.0",
     "@angular/core": "^22.2.0",
     "@angular/forms": "^22.2.0",
+    "@angular/material": "^22.2.7",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
     "rxjs": "~7.8.0",

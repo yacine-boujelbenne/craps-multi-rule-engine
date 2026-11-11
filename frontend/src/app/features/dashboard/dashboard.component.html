@@ -1,0 +1,138 @@
+<app-page-header
+  title="Dashboard"
+  subtitle="Overview of export shipments and their documentation progress."
+>
+  <a class="btn btn--primary" routerLink="/projects/new">
+    <app-icon name="plus" [size]="18" />
+    New project
+  </a>
+</app-page-header>
+
+@if (error()) {
+  <div class="alert alert--error" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ error() }}</span>
+  </div>
+}
+
+<section class="stats" aria-label="Key figures">
+  <app-stat-card
+    label="Total projects"
+    [value]="stats().totalProjects"
+    icon="folder"
+    tone="accent"
+    hint="All shipments on record"
+  />
+  <app-stat-card
+    label="Draft projects"
+    [value]="stats().draftProjects"
+    icon="file"
+    tone="neutral"
+    hint="Setup started, not yet submitted"
+  />
+  <app-stat-card
+    label="Awaiting validation"
+    [value]="stats().awaitingValidation"
+    icon="clock"
+    tone="warning"
+    hint="Ready for reviewer approval"
+  />
+  <app-stat-card
+    label="Completed"
+    [value]="stats().completed"
+    icon="check"
+    tone="success"
+    hint="Official documents received"
+  />
+</section>
+
+<div class="grid">
+  <app-panel
+    class="grid__main"
+    title="Recently created"
+    subtitle="Latest projects added to the workspace"
+    [flush]="true"
+  >
+    <a panel-actions class="link" routerLink="/projects">
+      View all
+      <app-icon name="chevron-right" [size]="16" />
+    </a>
+
+    @if (loading() && !loaded()) {
+      <div class="skeleton-list" aria-busy="true" aria-label="Loading projects">
+        @for (row of [1, 2, 3, 4]; track row) {
+          <div class="skeleton-row">
+            <span class="skeleton skeleton--lg"></span>
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--sm"></span>
+          </div>
+        }
+      </div>
+    } @else if (recentProjects().length === 0) {
+      <div class="empty-inline">
+        <p>No projects yet.</p>
+        <a class="btn btn--ghost" routerLink="/projects/new">Create the first project</a>
+      </div>
+    } @else {
+      <ul class="project-list">
+        @for (project of recentProjects(); track project.id) {
+          <li>
+            <a class="project-row" [routerLink]="['/projects', project.id]">
+              <span class="project-row__ref mono">{{ project.reference }}</span>
+              <span class="project-row__customer">{{ project.consignee.name }}</span>
+              <span class="project-row__meta">
+                <app-status-badge
+                  [label]="statusMeta(project.status).label"
+                  [tone]="statusMeta(project.status).tone"
+                />
+                <span class="project-row__date">{{ formatDate(project.createdAt) }}</span>
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </app-panel>
+
+  <app-panel
+    class="grid__side"
+    title="Upcoming departures"
+    subtitle="Estimated time of departure"
+    [flush]="true"
+  >
+    @if (loading() && !loaded()) {
+      <div class="skeleton-list" aria-busy="true">
+        @for (row of [1, 2, 3]; track row) {
+          <div class="skeleton-row">
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--sm"></span>
+          </div>
+        }
+      </div>
+    } @else if (upcomingDepartures().length === 0) {
+      <div class="empty-inline">
+        <p>No scheduled departures.</p>
+      </div>
+    } @else {
+      <ul class="departure-list">
+        @for (project of upcomingDepartures(); track project.id) {
+          <li>
+            <a class="departure-row" [routerLink]="['/projects', project.id]">
+              <span class="departure-row__icon">
+                <app-icon name="ship" [size]="18" />
+              </span>
+              <span class="departure-row__body">
+                <span class="departure-row__dest">{{ project.destination }}</span>
+                <span class="departure-row__ref mono">{{ project.reference }}</span>
+              </span>
+              <span class="departure-row__etd">
+                <strong>{{ formatDate(project.etd) }}</strong>
+                <small>{{ relativeToToday(project.etd) }}</small>
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </app-panel>
+</div>

@@ -1,0 +1,73 @@
+// Design tokens — Lucent-inspired, professional back-office palette.
+// Reference palette: canvas #FAFAFA, ink #1F2022, blue #61A6F6, muted #A4A4A4.
+// Accessibility: a darkened accent is provided for text/small UI (WCAG AA on light).
+
+:root {
+  // Surfaces
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f4f5f7;
+  --color-overlay: rgba(31, 32, 34, 0.4);
+
+  // Typography colors
+  --color-ink: #1f2022;
+  --color-ink-soft: #4b4e54;
+  --color-muted: #8a8d92;
+  --color-muted-soft: #a4a4a4;
+
+  // Borders & lines
+  --color-border: #e8e9ec;
+  --color-border-strong: #d6d8dd;
+
+  // Accent (brand blue)
+  --color-accent: #61a6f6;
+  --color-accent-strong: #2c7be5;
+  --color-accent-ink: #1b5fb8;
+  --color-accent-soft: #eaf3fe;
+  --color-accent-contrast: #ffffff;
+
+  // Semantic states
+  --color-success: #1f9d63;
+  --color-success-soft: #e6f6ee;
+  --color-warning: #b7791f;
+  --color-warning-soft: #fdf3e3;
+  --color-danger: #d64545;
+  --color-danger-soft: #fdecec;
+  --color-info: #2c7be5;
+  --color-info-soft: #eaf3fe;
+
+  // Spacing scale (4 / 8 / 12 / 16 / 24 / 32)
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  // Radii
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  // Elevation
+  --shadow-xs: 0 1px 2px rgba(31, 32, 34, 0.05);
+  --shadow-sm: 0 2px 8px rgba(31, 32, 34, 0.06);
+  --shadow-md: 0 8px 24px rgba(31, 32, 34, 0.08);
+
+  // Motion
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+
+  // Layout
+  --sidebar-width: 248px;
+  --topbar-height: 64px;
+  --content-max-width: 1320px;
+
+  // Font
+  --font-sans:
+    'Inter', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}

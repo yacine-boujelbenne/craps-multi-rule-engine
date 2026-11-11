@@ -1,0 +1,41 @@
+// Shared SCSS mixins.
+
+@mixin card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+@mixin focus-ring {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin below($breakpoint) {
+  @if $breakpoint == sm {
+    @media (max-width: 599px) {
+      @content;
+    }
+  } @else if $breakpoint == md {
+    @media (max-width: 959px) {
+      @content;
+    }
+  } @else if $breakpoint == lg {
+    @media (max-width: 1279px) {
+      @content;
+    }
+  }
+}
+
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}
