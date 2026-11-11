@@ -13,6 +13,8 @@ This is an additive architecture decision record. Existing shared plans and play
 | Chronology | ETD is estimated, not actual. | Older production <= shipment <= ETD and unconditional three-day blocker are not enforced. Only event-local known chronology is constrained. |
 | PDF safety | Latest confirmed rules: completely blank signature/stamp spaces on every signing-ready page; conspicuously invalid illustrative preview. | Metadata separates variants. Renderer and authorization are future work. |
 | Output scope | Five confirmed output families only. | Older G6/G7/playbooks that imply mandatory invoice/PL/PS PDFs are not current acceptance scope. |
+| Internal accounts | Owner confirmed own application accounts, created/managed by ADMIN; no self-registration. | Replaces the previous external-login assumption; see ACCESS-MODEL.md and accounts-access-v1.yaml. |
+| Form permissions | Owner confirmed operators read all forms of assigned shipments but edit only assigned forms. | Project membership grants read access; explicit form assignment grants editing. |
 | Agent ownership | Current user assigns architect schema/bootstrap/contracts and Agent 2 business REST APIs. | Takes precedence over older roster assigning schema to backend and architect to main checkout. Use isolated worktrees. |
 
 ## Still open; not guessed
@@ -22,7 +24,7 @@ This is an additive architecture decision record. Existing shared plans and play
 3. Lock source and the individual outputs that require it. No draft creation blocker is invented.
 4. Destination countries, approved layouts, external issuers, all signing roles and rights to company illustration assets. PDF templates are not implemented here.
 5. Early invoice deadline calendar/business days and warning vs blocker; invoice/packing PDF generation and Processing Statement/CS meaning.
-6. OIDC identity provider, user provisioning and organization/port directory CRUD/search. Agent 2 owns authentication/access integration; this skeleton exposes only health anonymously.
+6. Organization/port directory CRUD/search implementation remains pending. Account ownership and project/form visibility are resolved in ACCESS-MODEL.md; Agent 2 must implement the updated internal-login and assignment contract.
 7. Scope/uniqueness of external certificate references and whether physical catch lots/certificates can be shared between shipment projects. Initial records are shipment-scoped allocations; no global uniqueness on authority references is imposed. If physical source reuse is required, introduce a shared source ledger before enabling cross-shipment allocation to prevent double consumption.
 8. Document artifact storage, retention and legitimate external-issued originals. Private artifact keys/snapshot metadata are reserved; no public storage, approval claim or import implementation is provided.
 

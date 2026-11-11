@@ -1,0 +1,702 @@
+openapi: 3.0.3
+info:
+  title: Local accounts and project form assignments
+  version: 1.0.0
+  description: Owner-confirmed admin-managed accounts, project-wide read access, per-form
+    editing. Target contract; Agent 2 implements services/controllers/security. No
+    public registration endpoint.
+servers:
+- url: http://localhost:8080
+security:
+- sessionAuth: []
+paths:
+  /api/auth/csrf:
+    get:
+      operationId: getCsrf
+      summary: Obtain/refresh XSRF-TOKEN cookie; call before login and after login/logout
+      responses:
+        '204':
+          description: CSRF cookie issued; include its raw value in X-XSRF-TOKEN on
+            every unsafe request.
+      security: []
+  /api/auth/login:
+    post:
+      operationId: login
+      summary: Authenticate an active local account; rotate and persist session
+      responses:
+        '200':
+          description: Authenticated; if mustChangePassword=true, only me/password/logout
+            are available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      security: []
+  /api/auth/logout:
+    post:
+      operationId: logout
+      summary: Invalidate session and clear authentication cookies
+      responses:
+        '204':
+          description: Logged out; idempotent for an absent session with valid CSRF.
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      security: []
+  /api/auth/me:
+    get:
+      operationId: currentUser
+      summary: Current active user and database roles
+      responses:
+        '200':
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+  /api/auth/password:
+    post:
+      operationId: changeOwnPassword
+      summary: Change password and invalidate sessions; login again
+      responses:
+        '204':
+          description: Password changed; current session invalidated.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+  /api/admin/users:
+    post:
+      operationId: createUser
+      summary: Administrator creates an active local account; initial password must
+        be changed
+      responses:
+        '201':
+          description: Created. Location /api/admin/users/{id}.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate username, stale version, or operation would remove
+            the last active administrator.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      x-required-role: ADMIN
+    get:
+      operationId: listUsers
+      summary: Administrator lists accounts, ordered username ASC, id ASC
+      responses:
+        '200':
+          description: Account page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      x-required-role: ADMIN
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+  /api/admin/users/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: &id001
+        type: string
+        format: uuid
+    get:
+      operationId: getUser
+      summary: Read account metadata; never return credentials
+      responses:
+        '200':
+          description: Account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      x-required-role: ADMIN
+    patch:
+      operationId: updateUser
+      summary: Change username/display name/roles/active state; expectedVersion required
+      responses:
+        '200':
+          description: Updated; effective changes increment app_user.version once.
+            No-op unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate username, stale version, or operation would remove
+            the last active administrator.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      x-required-role: ADMIN
+  /api/admin/users/{id}/password:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: *id001
+    post:
+      operationId: resetUserPassword
+      summary: Set a temporary password and invalidate existing sessions
+      responses:
+        '200':
+          description: Reset; mustChangePassword=true, account version incremented.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate username, stale version, or operation would remove
+            the last active administrator.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      x-required-role: ADMIN
+  /api/admin/projects/{projectId}/operators:
+    parameters:
+    - name: projectId
+      in: path
+      required: true
+      schema: *id001
+    get:
+      operationId: listProjectOperators
+      summary: List operator memberships and assigned form keys
+      responses:
+        '200':
+          description: Assignments, ordered userId ASC.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OperatorAssignment'
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      x-required-role: ADMIN
+  /api/admin/projects/{projectId}/operators/{userId}:
+    parameters:
+    - name: projectId
+      in: path
+      required: true
+      schema: *id001
+    - name: userId
+      in: path
+      required: true
+      schema: *id001
+    put:
+      operationId: assignProjectOperator
+      summary: Grant project read access and replace the operator edit-form set
+      responses:
+        '200':
+          description: Idempotent replacement; [] grants read-only project access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorAssignment'
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorAssignmentRequest'
+      x-required-role: ADMIN
+    delete:
+      operationId: unassignProjectOperator
+      summary: Remove form grants then project access atomically
+      responses:
+        '204':
+          description: Unassigned; no access to this project. Idempotent for an absent
+            assignment.
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      x-required-role: ADMIN
+  /api/projects/{id}/permissions:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: *id001
+    get:
+      operationId: getProjectPermissions
+      summary: Effective permissions for current user; authorization remains server-side
+      responses:
+        '200':
+          description: All forms readable; only editableForms may be changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectPermissions'
+        '401':
+          description: Authentication failed or session unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Access denied, CSRF invalid, or password change required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Resource missing or invisible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: Server-managed session after local login. Mutating requests additionally
+        require X-XSRF-TOKEN matching the XSRF-TOKEN cookie.
+  schemas:
+    FormKey:
+      type: string
+      enum:
+      - PROJECT_SETUP
+      - INVOICE
+      - PACKING_LIST
+      - CATCH_CERTIFICATES
+      - PROCESSING
+      - TRANSPORT
+      - HEALTH_CERTIFICATE
+      - BILL_OF_LADING
+      - CERTIFICATE_OF_ORIGIN
+      - SHIPPING_LIST
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - username
+      - password
+      properties:
+        username: &id002
+          type: string
+          minLength: 3
+          maxLength: 254
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._@+-]{2,253}$
+          description: Trim before validation, normalize to lowercase. Can be an administrator-chosen
+            username or email-like identifier; no email delivery is implied.
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 64
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - username
+      - displayName
+      - active
+      - roles
+      - mustChangePassword
+      - version
+      properties:
+        id: *id001
+        username: *id002
+        displayName: &id003
+          type: string
+          minLength: 1
+          maxLength: 200
+        active:
+          type: boolean
+        roles: &id004
+          type: array
+          minItems: 1
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - ADMIN
+            - OPERATOR
+            - REVIEWER
+            - VIEWER
+        mustChangePassword:
+          type: boolean
+        version: &id005
+          type: integer
+          format: int64
+          minimum: 0
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - username
+      - displayName
+      - roles
+      - initialPassword
+      properties:
+        username: *id002
+        displayName: *id003
+        roles: *id004
+        initialPassword: &id006
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 12
+          maxLength: 64
+          description: Also enforce at most 72 UTF-8 bytes with the chosen bcrypt
+            PasswordEncoder. Never trim passwords or echo them.
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion: *id005
+        username: *id002
+        displayName: *id003
+        active:
+          type: boolean
+        roles: *id004
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      - temporaryPassword
+      properties:
+        expectedVersion: *id005
+        temporaryPassword: *id006
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - currentPassword
+      - newPassword
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 64
+        newPassword: *id006
+    OperatorAssignmentRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - formKeys
+      properties:
+        formKeys: &id007
+          type: array
+          uniqueItems: true
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/FormKey'
+    OperatorAssignment:
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - userId
+      - formKeys
+      properties:
+        projectId: *id001
+        userId: *id001
+        formKeys: *id007
+    ProjectPermissions:
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - canRead
+      - canManageAssignments
+      - editableForms
+      properties:
+        projectId: *id001
+        canRead:
+          type: boolean
+        canManageAssignments:
+          type: boolean
+        editableForms: *id007
+    UserPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0

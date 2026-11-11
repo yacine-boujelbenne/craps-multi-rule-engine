@@ -94,3 +94,9 @@ Agent 2's commits ad3e86b and 26c504b were cherry-picked without conflicts as 57
 On the combined tree, the 10 offline contract tests, Compose configuration, git diff --check and the check for no frontend content changes passed. Agent 2 separately reports five isolated ProjectActorTest cases passed with cached JUnit and Java source syntax parsing at release 21; these are not evidence of a Spring build or database integration. No new success is claimed for Maven, Flyway execution, PostgreSQL startup or readiness. All runtime blockers above remain.
 
 The architecture branch now contains the integrated backend; consumers can base a new integration branch on feat/architecture-phase1. If integrating only into an existing backend branch, avoid reapplying its already-cherry-picked foundation/API commits. Root frontend content remains unchanged relative to the preserved baseline; no original shared checkout branch was merged or overwritten.
+
+## Owner-confirmed account/form access update
+
+Added V2__local_accounts_and_form_assignments.sql, AccountAssignmentsIT (six PostgreSQL schema tests), ACCESS-MODEL.md, accounts-access-v1.yaml and projects-v2.yaml; updated contract index, decisions, open questions and the offline checker. V1 is unchanged. The target schema contains 26 tables: local_account and project_form_assignment extend the previous 24. Credentials use a dedicated redacted audit trigger; project membership remains read access and per-form grants add editing. Local-account login/enforcement services are still pending Agent 2 implementation; the currently integrated code remains JWT-based.
+
+**13 offline contract tests passed** after this change. The six new schema tests have not compiled/executed. Docker/Maven blockers remain; no migration success is claimed. This extends the earlier manifest; previous check counts describe the historical slice.

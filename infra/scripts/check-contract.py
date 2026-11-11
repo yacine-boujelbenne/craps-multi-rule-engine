@@ -26,10 +26,12 @@ def json_schema(value):
 
 
 SCHEMAS = json_schema(SPEC['components']['schemas'])
+ACCESS_SPEC = yaml.safe_load((ROOT / 'docs/contracts/accounts-access-v1.yaml').read_text())
+ACCESS_SCHEMAS = json_schema(ACCESS_SPEC['components']['schemas'])
 
 
-def validate(name, payload):
-    schema = {'definitions': SCHEMAS, '$ref': '#/definitions/' + name}
+def validate(name, payload, schemas=SCHEMAS):
+    schema = {'definitions': schemas, '$ref': '#/definitions/' + name}
     return list(Draft4Validator(schema, format_checker=FormatChecker()).iter_errors(payload))
 
 
@@ -84,6 +86,30 @@ class ProjectContractChecks(unittest.TestCase):
         for status in SPEC['components']['schemas']['ProjectStatus']['enum']:
             self.assertIn("'" + status + "'", migration)
         self.assertIn("DEFAULT 'DRAFT_DATA'", migration)
+
+    def test_admin_account_creation_has_no_public_registration(self):
+        payload = {'username': 'fictional.operator', 'displayName': 'Fictional operator',
+                   'roles': ['OPERATOR'], 'initialPassword': 'fictional-password-42'}
+        self.assertFalse(validate('CreateUserRequest', payload, ACCESS_SCHEMAS))
+        self.assertNotIn('/api/auth/register', ACCESS_SPEC['paths'])
+        self.assertEqual(ACCESS_SPEC['paths']['/api/admin/users']['post']['x-required-role'], 'ADMIN')
+        self.assertNotIn('password_hash', ACCESS_SPEC['components']['schemas']['UserResponse']['properties'])
+
+    def test_form_assignments_are_explicit_and_bounded(self):
+        self.assertFalse(validate('OperatorAssignmentRequest', {'formKeys': []}, ACCESS_SCHEMAS))
+        self.assertFalse(validate('OperatorAssignmentRequest', {'formKeys': ['PACKING_LIST']}, ACCESS_SCHEMAS))
+        for keys in [None, ['ARBITRARY_FORM'], ['PACKING_LIST', 'PACKING_LIST']]:
+            self.assertTrue(validate('OperatorAssignmentRequest', {'formKeys': keys}, ACCESS_SCHEMAS))
+        migration = (ROOT / 'backend/src/main/resources/db/migration/V2__local_accounts_and_form_assignments.sql').read_text()
+        for key in ACCESS_SPEC['components']['schemas']['FormKey']['enum']:
+            self.assertIn("'" + key + "'", migration)
+
+    def test_updated_project_contract_preserves_data_and_restricts_writes(self):
+        updated = yaml.safe_load((ROOT / 'docs/contracts/projects-v2.yaml').read_text())
+        self.assertEqual(updated['components']['schemas'], SPEC['components']['schemas'])
+        self.assertEqual(updated['paths']['/api/projects']['post']['x-required-role'], 'ADMIN')
+        self.assertEqual(updated['paths']['/api/projects/{id}']['patch']['x-edit-form'], 'PROJECT_SETUP')
+        self.assertEqual(updated['security'], [{'sessionAuth': []}])
 
     def test_all_operations_have_explicit_problem_responses(self):
         for path in SPEC['paths'].values():
