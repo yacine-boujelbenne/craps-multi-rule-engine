@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ProjectStore } from '../../core/services/project.store';
+import { DirectoryStore } from '../../core/services/directory.store';
 import { PROJECT_STATUS_META, Project } from '../../core/models/project.model';
 import { formatDate, relativeToToday } from '../../core/utils/format';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -25,6 +26,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 })
 export class DashboardComponent implements OnInit {
   private readonly store = inject(ProjectStore);
+  private readonly directory = inject(DirectoryStore);
 
   protected readonly stats = this.store.stats;
   protected readonly recentProjects = this.store.recentProjects;
@@ -33,14 +35,23 @@ export class DashboardComponent implements OnInit {
   protected readonly error = this.store.error;
   protected readonly loaded = this.store.loaded;
 
-  protected readonly isEmpty = computed(() => this.loaded() && this.store.projects().length === 0);
+  protected readonly isEmpty = computed(() => this.loaded() && this.stats().totalProjects === 0);
 
   ngOnInit(): void {
-    this.store.loadProjects();
+    this.directory.ensureLoaded();
+    this.store.loadDashboard();
   }
 
   protected statusMeta(status: Project['status']) {
     return PROJECT_STATUS_META[status];
+  }
+
+  protected consigneeName(id: string | null | undefined): string {
+    return this.directory.organizationName(id);
+  }
+
+  protected countryName(code: string | null | undefined): string {
+    return this.directory.countryName(code);
   }
 
   protected readonly formatDate = formatDate;

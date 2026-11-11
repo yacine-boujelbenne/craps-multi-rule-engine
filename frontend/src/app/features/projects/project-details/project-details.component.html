@@ -18,13 +18,14 @@
 } @else if (project(); as p) {
   <app-page-header
     [title]="p.reference"
-    [subtitle]="p.consignee.name + ' · ' + p.destination"
+    [subtitle]="consigneeName() + ' · ' + countryName(p.destinationCountryCode)"
     [breadcrumbs]="[{ label: 'Projects', link: '/projects' }, { label: p.reference }]"
   >
     <a class="btn btn--ghost" routerLink="/projects">
       <app-icon name="arrow-left" [size]="18" />
       Back
     </a>
+    <a class="btn btn--primary" [routerLink]="['/projects', p.id, 'edit']"> Edit </a>
   </app-page-header>
 
   <div class="detail">
@@ -40,21 +41,23 @@
           </div>
           <div class="fact">
             <span class="fact__label">Destination</span>
-            <span class="fact__value">{{ p.destination }}</span>
+            <span class="fact__value">{{ countryName(p.destinationCountryCode) }}</span>
           </div>
           <div class="fact">
             <span class="fact__label">Loading port</span>
-            <span class="fact__value">{{ p.loadingPort }}</span>
+            <span class="fact__value">{{ portName(p.portOfLoadingId) }}</span>
           </div>
           <div class="fact">
             <span class="fact__label">Discharge port</span>
-            <span class="fact__value">{{ p.dischargePort }}</span>
+            <span class="fact__value">{{ portName(p.portOfDischargeId) }}</span>
           </div>
           <div class="fact">
             <span class="fact__label">ETD</span>
             <span class="fact__value">
-              {{ formatDate(p.etd) }}
-              <small class="fact__hint">{{ relativeToToday(p.etd) }}</small>
+              {{ formatDate(p.expectedDepartureDate) }}
+              @if (p.expectedDepartureDate) {
+                <small class="fact__hint">{{ relativeToToday(p.expectedDepartureDate) }}</small>
+              }
             </span>
           </div>
           <div class="fact">
@@ -73,29 +76,29 @@
             <span class="progress__fill" [style.width.%]="progressPercent()"></span>
           </div>
           <span class="progress__label">
-            {{ completedSteps() }} of {{ steps.length }} steps ready
+            {{ completedSteps() }} of {{ steps().length }} steps ready
           </span>
         </div>
 
         <ol class="steps">
-          @for (key of steps; track key; let i = $index) {
-            <li class="step" [class.step--done]="isStepDone(key)">
-              <button type="button" class="step__btn" (click)="openStep(key)">
+          @for (step of steps(); track step.key; let i = $index) {
+            <li class="step" [class.step--done]="isStepDone(step.key)">
+              <button type="button" class="step__btn" (click)="openStep(step.key)">
                 <span class="step__index" aria-hidden="true">
-                  @if (isStepDone(key)) {
+                  @if (isStepDone(step.key)) {
                     <app-icon name="check" [size]="15" />
                   } @else {
                     {{ i + 1 }}
                   }
                 </span>
                 <span class="step__body">
-                  <span class="step__label">{{ stepLabels[key] }}</span>
-                  <span class="step__desc">{{ stepDescriptions[key] }}</span>
+                  <span class="step__label">{{ stepLabels[step.key] }}</span>
+                  <span class="step__desc">{{ stepDescriptions[step.key] }}</span>
                 </span>
                 <span class="step__status">
                   <app-status-badge
-                    [label]="docStatusMeta[stepStatus(key)].label"
-                    [tone]="docStatusMeta[stepStatus(key)].tone"
+                    [label]="docStatusMeta[step.status].label"
+                    [tone]="docStatusMeta[step.status].tone"
                   />
                   <span class="step__soon">Soon</span>
                 </span>
@@ -114,27 +117,30 @@
               </span>
               <div class="partner__body">
                 <span class="partner__label">{{ partner.label }}</span>
-                <span class="partner__name">{{ partner.party.name }}</span>
-                @if (partner.party.country) {
-                  <span class="partner__country">{{ partner.party.country }}</span>
-                }
+                <span class="partner__name">{{ partner.name }}</span>
               </div>
             </div>
           }
         </div>
       </app-panel>
+
+      @if (p.notes) {
+        <app-panel title="Notes">
+          <p class="notes">{{ p.notes }}</p>
+        </app-panel>
+      }
     </div>
 
     <aside class="detail__aside">
       <app-panel title="Project status">
         <div class="status-summary">
-          <span class="status-summary__avatar">{{ initials(p.consignee.name) }}</span>
+          <span class="status-summary__avatar">{{ initials(consigneeName()) }}</span>
           <app-status-badge
             [label]="projectStatusMeta[p.status].label"
             [tone]="projectStatusMeta[p.status].tone"
           />
           <p class="status-summary__hint">
-            {{ completedSteps() }} of {{ steps.length }} document steps ready
+            {{ completedSteps() }} of {{ steps().length }} document steps ready
           </p>
         </div>
       </app-panel>
@@ -143,30 +149,34 @@
         <dl class="meta-list">
           <div class="meta-list__row">
             <dt>Destination</dt>
-            <dd>{{ p.destination }}</dd>
+            <dd>{{ countryName(p.destinationCountryCode) }}</dd>
           </div>
           <div class="meta-list__row">
             <dt>Loading port</dt>
-            <dd>{{ p.loadingPort }}</dd>
+            <dd>{{ portName(p.portOfLoadingId) }}</dd>
           </div>
           <div class="meta-list__row">
             <dt>Discharge port</dt>
-            <dd>{{ p.dischargePort }}</dd>
+            <dd>{{ portName(p.portOfDischargeId) }}</dd>
           </div>
           <div class="meta-list__row">
             <dt>ETD</dt>
             <dd>
-              {{ formatDate(p.etd) }}
-              <small class="meta-list__hint">{{ relativeToToday(p.etd) }}</small>
+              {{ formatDate(p.expectedDepartureDate) }}
+              @if (p.expectedDepartureDate) {
+                <small class="meta-list__hint">{{
+                  relativeToToday(p.expectedDepartureDate)
+                }}</small>
+              }
             </dd>
           </div>
           <div class="meta-list__row">
             <dt>Shipping line</dt>
-            <dd>{{ p.shippingLine.name }}</dd>
+            <dd>{{ shippingLineName() }}</dd>
           </div>
           <div class="meta-list__row">
             <dt>Forwarder</dt>
-            <dd>{{ p.freightForwarder.name }}</dd>
+            <dd>{{ forwarderName() }}</dd>
           </div>
         </dl>
       </app-panel>
@@ -180,6 +190,10 @@
           <div class="meta-list__row">
             <dt>Last updated</dt>
             <dd>{{ formatDateTime(p.updatedAt) }}</dd>
+          </div>
+          <div class="meta-list__row">
+            <dt>Version</dt>
+            <dd>{{ p.version }}</dd>
           </div>
           <div class="meta-list__row">
             <dt>Project ID</dt>

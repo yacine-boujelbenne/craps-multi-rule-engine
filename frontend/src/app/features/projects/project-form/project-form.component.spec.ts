@@ -3,26 +3,69 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Country, Organization, Port } from '../../../core/models/directory.model';
 import { CreateProjectRequest, Project } from '../../../core/models/project.model';
+import { DIRECTORY_SERVICE } from '../../../core/services/directory.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ProjectStore } from '../../../core/services/project.store';
 import { ProjectFormComponent } from './project-form.component';
 
+const ORG = {
+  exporter: '00000000-0000-4000-8000-000000000101',
+  producer: '00000000-0000-4000-8000-000000000102',
+  consignee: '00000000-0000-4000-8000-000000000201',
+  forwarder: '00000000-0000-4000-8000-000000000401',
+  line: '00000000-0000-4000-8000-000000000501',
+};
+
+const PORT = {
+  loading: '00000000-0000-4000-8000-000000000601',
+  discharge: '00000000-0000-4000-8000-000000000701',
+};
+
+const ORGANIZATIONS: Organization[] = [
+  { id: ORG.exporter, legalName: 'Exporter', countryCode: 'MA', roles: ['EXPORTER'], active: true },
+  { id: ORG.producer, legalName: 'Producer', countryCode: 'MA', roles: ['PRODUCER'], active: true },
+  {
+    id: ORG.consignee,
+    legalName: 'Consignee',
+    countryCode: 'ES',
+    roles: ['CONSIGNEE'],
+    active: true,
+  },
+  {
+    id: ORG.forwarder,
+    legalName: 'Forwarder',
+    countryCode: 'MA',
+    roles: ['FREIGHT_FORWARDER'],
+    active: true,
+  },
+  { id: ORG.line, legalName: 'Line', countryCode: 'DK', roles: ['SHIPPING_LINE'], active: true },
+];
+
+const PORTS: Port[] = [
+  { id: PORT.loading, name: 'Tanger Med', countryCode: 'MA', unLocode: 'MAPTM', active: true },
+  { id: PORT.discharge, name: 'Vigo', countryCode: 'ES', unLocode: 'ESVGO', active: true },
+];
+
+const COUNTRIES: Country[] = [{ code: 'ES', name: 'Spain' }];
+
 const CREATED: Project = {
   id: 'new-id',
+  version: 0,
+  status: 'DRAFT_DATA',
   reference: 'EXP-2026-0042',
-  exporter: { name: 'Exporter' },
-  producer: { name: 'Producer' },
-  consignee: { name: 'Consignee' },
-  notifyParty: { name: 'Consignee' },
-  freightForwarder: { name: 'Forwarder' },
-  shippingLine: { name: 'Line' },
-  destination: 'Spain — Vigo',
-  loadingPort: 'Tanger Med',
-  dischargePort: 'Vigo',
-  etd: '2027-01-15',
-  status: 'DRAFT',
-  documentSteps: [],
+  exporterId: ORG.exporter,
+  producerIds: [ORG.producer],
+  consigneeId: ORG.consignee,
+  notifyPartyId: ORG.consignee,
+  freightForwarderId: ORG.forwarder,
+  shippingLineId: ORG.line,
+  destinationCountryCode: 'ES',
+  portOfLoadingId: PORT.loading,
+  portOfDischargeId: PORT.discharge,
+  expectedDepartureDate: '2027-01-15',
+  notes: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -33,15 +76,25 @@ function storeStub() {
     loading: signal(false),
     error: signal<string | null>(null),
     loaded: signal(true),
+    page: signal({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }),
+    query: signal({ page: 0, size: 20 }),
     stats: signal({}),
     recentProjects: signal<Project[]>([]),
     upcomingDepartures: signal<Project[]>([]),
-    loadProjects: vi.fn(),
+    loadPage: vi.fn(),
+    loadDashboard: vi.fn(),
     createProject: vi.fn((_input: CreateProjectRequest) => of(CREATED)),
     getProject: vi.fn(),
     updateProject: vi.fn(),
   };
 }
+
+const directoryStub = {
+  organizations: (role?: string) =>
+    of(role ? ORGANIZATIONS.filter((org) => org.roles.includes(role as never)) : ORGANIZATIONS),
+  ports: () => of(PORTS),
+  countries: () => of(COUNTRIES),
+};
 
 describe('ProjectFormComponent', () => {
   let store: ReturnType<typeof storeStub>;
@@ -60,6 +113,7 @@ describe('ProjectFormComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ProjectStore, useValue: store },
+        { provide: DIRECTORY_SERVICE, useValue: directoryStub },
         { provide: NotificationService, useValue: notifications },
       ],
     }).compileComponents();
@@ -77,19 +131,19 @@ describe('ProjectFormComponent', () => {
   }
 
   function fillValid(fixture: ReturnType<typeof create>): void {
-    const f = form(fixture);
-    f.patchValue({
+    form(fixture).patchValue({
       reference: 'EXP-2026-0042',
-      exporter: { name: 'Atlantic Blue Seafood Co.', country: 'Morocco' },
-      producer: { name: 'Nordic Catch Processing', country: 'Morocco' },
-      consignee: { name: 'Iberia Import S.L.', country: 'Spain' },
-      notifyParty: { name: 'Iberia Import S.L.', country: 'Spain' },
-      freightForwarder: { name: 'TransGlobal Logistics', country: 'Morocco' },
-      shippingLine: { name: 'Maersk Line' },
-      destination: 'Spain — Vigo',
-      loadingPort: 'Tanger Med',
-      dischargePort: 'Vigo',
-      etd: '2027-01-15',
+      exporterId: ORG.exporter,
+      producerIds: [ORG.producer],
+      consigneeId: ORG.consignee,
+      notifyPartyId: ORG.consignee,
+      freightForwarderId: ORG.forwarder,
+      shippingLineId: ORG.line,
+      destinationCountryCode: 'ES',
+      portOfLoadingId: PORT.loading,
+      portOfDischargeId: PORT.discharge,
+      expectedDepartureDate: '2027-01-15',
+      notes: '',
     });
   }
 
@@ -100,22 +154,22 @@ describe('ProjectFormComponent', () => {
 
   it('rejects a malformed project reference', () => {
     const fixture = create();
-    const f = form(fixture);
-    f.controls.reference.setValue('bad-ref');
-    expect(f.controls.reference.hasError('pattern')).toBe(true);
+    const control = form(fixture).controls.reference;
+    control.setValue('has spaces');
+    expect(control.hasError('pattern')).toBe(true);
   });
 
-  it('rejects an ETD in the past', () => {
+  it('accepts a historical ETD (contract permits past dates)', () => {
     const fixture = create();
-    const f = form(fixture);
+    const control = form(fixture).controls.expectedDepartureDate;
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    f.controls.etd.setValue(yesterday);
-    expect(f.controls.etd.hasError('pastDate')).toBe(true);
+    control.setValue(yesterday);
+    expect(control.hasError('pastDate')).toBe(false);
   });
 
   it('does not submit an invalid form', () => {
     const fixture = create();
-    (fixture.componentInstance as any).submit();
+    (fixture.componentInstance as unknown as { submit(): void }).submit();
     expect(store.createProject).not.toHaveBeenCalled();
     expect(notifications.error).toHaveBeenCalled();
   });
@@ -125,26 +179,25 @@ describe('ProjectFormComponent', () => {
     const fixture = create();
     fillValid(fixture);
 
-    (fixture.componentInstance as any).submit();
+    (fixture.componentInstance as unknown as { submit(): void }).submit();
 
     expect(store.createProject).toHaveBeenCalledTimes(1);
     const payload = store.createProject.mock.calls[0][0];
     expect(payload.reference).toBe('EXP-2026-0042');
-    expect(payload.consignee.name).toBe('Iberia Import S.L.');
+    expect(payload.consigneeId).toBe(ORG.consignee);
     expect(navigate).toHaveBeenCalledWith(['/projects', CREATED.id]);
   });
 
-  it('copies the consignee into the notify party when requested', () => {
+  it('copies the consignee id into the notify party when requested', () => {
     const fixture = create();
-    const f = form(fixture);
-    f.controls.consignee.setValue({ name: 'Iberia Import S.L.', country: 'Spain' });
+    const control = form(fixture).controls;
+    control.consigneeId.setValue(ORG.consignee);
 
-    (fixture.componentInstance as any).onNotifyToggle(true);
+    (
+      fixture.componentInstance as unknown as { onNotifyToggle(checked: boolean): void }
+    ).onNotifyToggle(true);
 
-    expect(f.controls.notifyParty.getRawValue()).toEqual({
-      name: 'Iberia Import S.L.',
-      country: 'Spain',
-    });
-    expect(f.controls.notifyParty.disabled).toBe(true);
+    expect(control.notifyPartyId.getRawValue()).toBe(ORG.consignee);
+    expect(control.notifyPartyId.disabled).toBe(true);
   });
 });

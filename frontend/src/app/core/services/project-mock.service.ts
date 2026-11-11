@@ -1,91 +1,163 @@
-import { Injectable } from '@angular/core';
+import { InjectionToken, Inject, Injectable, Optional } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { MOCK_PROJECTS } from '../data/mock-projects';
 import {
+  ApiProblemError,
   CreateProjectRequest,
-  DOCUMENT_STEP_ORDER,
-  DocumentStep,
+  normalizeReference,
   Project,
   ProjectListQuery,
+  ProjectPage,
   UpdateProjectRequest,
 } from '../models/project.model';
 import { ProjectService } from './project.service';
 
 const STORAGE_KEY = 'exportdocs.mock.projects';
-const LATENCY_MS = 320;
+export const DEFAULT_MOCK_LATENCY_MS = 320;
+export const MOCK_LATENCY_MS = new InjectionToken<number>('MOCK_LATENCY_MS');
+
+/** Fields a PATCH may change (presence-aware; omitted means unchanged). */
+const PATCHABLE_FIELDS = [
+  'reference',
+  'exporterId',
+  'producerIds',
+  'consigneeId',
+  'notifyPartyId',
+  'freightForwarderId',
+  'shippingLineId',
+  'destinationCountryCode',
+  'portOfLoadingId',
+  'portOfDischargeId',
+  'expectedDepartureDate',
+  'notes',
+] as const;
 
 /**
- * In-memory implementation of {@link ProjectService}.
+ * Fixture-backed {@link ProjectService} that mirrors the frozen contract:
+ * zero-based pagination, status + literal reference-prefix filtering, required
+ * `expectedVersion` on PATCH, and RFC 9457 Problem Details errors.
  *
- * Fully isolated from any real endpoint: it seeds from anonymized fixtures and
- * persists to localStorage so created projects survive a reload during
- * development. Replaced by the HTTP implementation once the API contract lands.
+ * Isolated from any real endpoint; persists to localStorage so created projects
+ * survive a reload during development.
  */
 @Injectable()
 export class ProjectMockService implements ProjectService {
   private projects: Project[] = this.load();
+  private readonly latency: number;
 
-  list(query?: ProjectListQuery): Observable<Project[]> {
+  constructor(@Optional() @Inject(MOCK_LATENCY_MS) latency?: number) {
+    this.latency = latency ?? DEFAULT_MOCK_LATENCY_MS;
+  }
+
+  list(query: ProjectListQuery = {}): Observable<ProjectPage> {
+    const page = Math.max(0, query.page ?? 0);
+    const size = Math.min(100, Math.max(1, query.size ?? 20));
+
     let items = [...this.projects];
-
-    const search = query?.search?.trim().toLowerCase();
-    if (search) {
-      items = items.filter((project) =>
-        [
-          project.reference,
-          project.consignee.name,
-          project.exporter.name,
-          project.destination,
-        ].some((value) => value.toLowerCase().includes(search)),
-      );
-    }
-
-    if (query?.status && query.status !== 'ALL') {
+    if (query.status) {
       items = items.filter((project) => project.status === query.status);
     }
+    const q = query.q?.trim();
+    if (q) {
+      const needle = q.toLowerCase();
+      items = items.filter((project) => project.reference.toLowerCase().startsWith(needle));
+    }
 
-    items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return of(items.map(clone)).pipe(delay(LATENCY_MS));
+    items.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+
+    const totalElements = items.length;
+    const totalPages = totalElements === 0 ? 0 : Math.ceil(totalElements / size);
+    const start = page * size;
+
+    const result: ProjectPage = {
+      items: items.slice(start, start + size).map(clone),
+      page,
+      size,
+      totalElements,
+      totalPages,
+    };
+    return of(result).pipe(delay(this.latency));
   }
 
   get(id: string): Observable<Project> {
     const project = this.projects.find((item) => item.id === id);
     if (!project) {
-      return throwError(() => new Error(`Project ${id} not found`)).pipe(delay(LATENCY_MS));
+      return this.fail(404, 'Project not found', `No project with id ${id}.`);
     }
-    return of(clone(project)).pipe(delay(LATENCY_MS));
+    return of(clone(project)).pipe(delay(this.latency));
   }
 
   create(input: CreateProjectRequest): Observable<Project> {
+    const reference = normalizeReference(input.reference);
+    if (this.projects.some((project) => project.reference === reference)) {
+      return this.fail(409, 'Duplicate reference', `Reference ${reference} already exists.`);
+    }
+
     const now = new Date().toISOString();
     const project: Project = {
       id: generateId(),
-      ...clone(input),
-      reference: input.reference || this.nextReference(),
-      status: 'DRAFT',
-      documentSteps: initialSteps(),
+      version: 0,
+      status: 'DRAFT_DATA',
+      reference,
+      exporterId: input.exporterId ?? null,
+      producerIds: [...(input.producerIds ?? [])],
+      consigneeId: input.consigneeId ?? null,
+      notifyPartyId: input.notifyPartyId ?? null,
+      freightForwarderId: input.freightForwarderId ?? null,
+      shippingLineId: input.shippingLineId ?? null,
+      destinationCountryCode: input.destinationCountryCode ?? null,
+      portOfLoadingId: input.portOfLoadingId ?? null,
+      portOfDischargeId: input.portOfDischargeId ?? null,
+      expectedDepartureDate: input.expectedDepartureDate ?? null,
+      notes: input.notes ?? null,
       createdAt: now,
       updatedAt: now,
     };
+
     this.projects = [project, ...this.projects];
     this.persist();
-    return of(clone(project)).pipe(delay(LATENCY_MS));
+    return of(clone(project)).pipe(delay(this.latency));
   }
 
   update(id: string, patch: UpdateProjectRequest): Observable<Project> {
-    const index = this.projects.findIndex((item) => item.id === id);
-    if (index === -1) {
-      return throwError(() => new Error(`Project ${id} not found`)).pipe(delay(LATENCY_MS));
+    const current = this.projects.find((item) => item.id === id);
+    if (!current) {
+      return this.fail(404, 'Project not found', `No project with id ${id}.`);
     }
-    const updated: Project = {
-      ...this.projects[index],
-      ...clone(patch),
-      updatedAt: new Date().toISOString(),
-    };
-    this.projects = this.projects.map((item, i) => (i === index ? updated : item));
+    if (patch.expectedVersion !== current.version) {
+      return this.fail(
+        409,
+        'Stale version',
+        `Expected version ${patch.expectedVersion} but the project is at ${current.version}.`,
+      );
+    }
+
+    const next: Project = { ...current };
+    for (const field of PATCHABLE_FIELDS) {
+      if (field in patch) {
+        (next as Record<string, unknown>)[field] = patch[field as keyof UpdateProjectRequest];
+      }
+    }
+    if (patch.reference !== undefined) {
+      next.reference = normalizeReference(patch.reference);
+      const duplicate = this.projects.some(
+        (project) => project.id !== id && project.reference === next.reference,
+      );
+      if (duplicate) {
+        return this.fail(409, 'Duplicate reference', `Reference ${next.reference} already exists.`);
+      }
+    }
+
+    if (!hasEffectiveChange(current, next)) {
+      return of(clone(current)).pipe(delay(this.latency));
+    }
+
+    next.version = current.version + 1;
+    next.updatedAt = new Date().toISOString();
+    this.projects = this.projects.map((item) => (item.id === id ? next : item));
     this.persist();
-    return of(clone(updated)).pipe(delay(LATENCY_MS));
+    return of(clone(next)).pipe(delay(this.latency));
   }
 
   /** Suggests the next `EXP-YYYY-NNNN` reference. */
@@ -97,6 +169,12 @@ export class ProjectMockService implements ProjectService {
       .filter((value) => Number.isFinite(value))
       .reduce((max, value) => Math.max(max, value), 0);
     return `${prefix}${String(highest + 1).padStart(4, '0')}`;
+  }
+
+  private fail(status: number, title: string, detail: string): Observable<never> {
+    return throwError(
+      () => new ApiProblemError(status, { type: 'about:blank', title, status, detail }),
+    ).pipe(delay(this.latency));
   }
 
   private load(): Project[] {
@@ -119,8 +197,12 @@ export class ProjectMockService implements ProjectService {
   }
 }
 
-function initialSteps(): DocumentStep[] {
-  return DOCUMENT_STEP_ORDER.map((key) => ({ key, status: 'NOT_STARTED' as const }));
+function hasEffectiveChange(current: Project, next: Project): boolean {
+  return PATCHABLE_FIELDS.some((field) => {
+    const a = JSON.stringify(current[field]);
+    const b = JSON.stringify(next[field]);
+    return a !== b;
+  });
 }
 
 function clone<T>(value: T): T {

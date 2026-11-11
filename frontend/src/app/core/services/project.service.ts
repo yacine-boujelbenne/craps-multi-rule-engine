@@ -4,23 +4,25 @@ import {
   CreateProjectRequest,
   Project,
   ProjectListQuery,
+  ProjectPage,
   UpdateProjectRequest,
 } from '../models/project.model';
 
 /**
- * Typed contract for project operations.
+ * Typed contract for project operations, mirroring the frozen OpenAPI spec
+ * `docs/contracts/projects-v2.yaml`:
  *
- * Endpoints follow the representative API in `docs/MASTER-PLAN.md` §10:
  *   POST   /api/projects
- *   GET    /api/projects
+ *   GET    /api/projects?page&size&status&q
  *   GET    /api/projects/{id}
- *   PATCH  /api/projects/{id}
+ *   PATCH  /api/projects/{id}   (requires expectedVersion)
  *
- * The interface is intentionally transport-agnostic so the mock and HTTP
- * implementations are interchangeable.
+ * Errors reject with {@link ApiProblemError} carrying RFC 9457 Problem Details.
+ * The interface stays transport-agnostic so the mock and HTTP implementations
+ * are interchangeable.
  */
 export interface ProjectService {
-  list(query?: ProjectListQuery): Observable<Project[]>;
+  list(query?: ProjectListQuery): Observable<ProjectPage>;
   get(id: string): Observable<Project>;
   create(input: CreateProjectRequest): Observable<Project>;
   update(id: string, patch: UpdateProjectRequest): Observable<Project>;

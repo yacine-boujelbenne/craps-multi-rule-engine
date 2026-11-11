@@ -4,7 +4,9 @@ import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from './app';
 import { routes } from './app.routes';
-import { ProjectMockService } from './core/services/project-mock.service';
+import { DirectoryMockService } from './core/services/directory-mock.service';
+import { DIRECTORY_SERVICE } from './core/services/directory.service';
+import { MOCK_LATENCY_MS, ProjectMockService } from './core/services/project-mock.service';
 import { PROJECT_SERVICE } from './core/services/project.service';
 
 describe('App', () => {
@@ -15,7 +17,9 @@ describe('App', () => {
       providers: [
         provideRouter(routes),
         provideHttpClient(),
+        { provide: MOCK_LATENCY_MS, useValue: 0 },
         { provide: PROJECT_SERVICE, useClass: ProjectMockService },
+        { provide: DIRECTORY_SERVICE, useClass: DirectoryMockService },
       ],
     }).compileComponents();
   });

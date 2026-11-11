@@ -1,190 +1,301 @@
 <app-page-header
-  title="New project"
-  subtitle="Create a shipment project. All fields marked with * are required."
-  [breadcrumbs]="[{ label: 'Projects', link: '/projects' }, { label: 'New project' }]"
+  [title]="mode() === 'edit' ? 'Edit project' : 'New project'"
+  [subtitle]="
+    mode() === 'edit'
+      ? 'Update the shipment project. Fields marked with * are required.'
+      : 'Create a shipment project. Fields marked with * are required.'
+  "
+  [breadcrumbs]="
+    mode() === 'edit'
+      ? [
+          { label: 'Projects', link: '/projects' },
+          { label: form.controls.reference.value || 'Project', link: projectIdLink() },
+          { label: 'Edit' },
+        ]
+      : [{ label: 'Projects', link: '/projects' }, { label: 'New project' }]
+  "
 />
 
-<form #projectForm class="project-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-  <div class="project-form__sections">
-    <app-panel
-      title="Project reference"
-      subtitle="A unique human-readable identifier for the shipment."
-    >
-      <div class="field" style="max-width: 360px">
-        <label class="field__label" for="reference">
-          Project reference <span class="req">*</span>
-        </label>
-        <input
-          id="reference"
-          class="control mono"
-          type="text"
-          formControlName="reference"
-          placeholder="EXP-2026-0001"
-          autocomplete="off"
-          [attr.aria-invalid]="showError('reference')"
-          [attr.aria-describedby]="'reference-hint'"
-        />
-        @if (showError('reference')) {
-          <span class="field__error" role="alert">
-            @if (form.controls.reference.hasError('required')) {
-              Reference is required.
-            } @else if (form.controls.reference.hasError('pattern')) {
-              Use the format EXP-YYYY-NNNN (e.g. EXP-2026-0001).
-            }
-          </span>
-        } @else {
-          <span class="field__hint" id="reference-hint">
-            Suggested automatically from existing projects; edit if needed.
-          </span>
-        }
-      </div>
-    </app-panel>
-
-    <app-panel
-      title="Business partners"
-      subtitle="Exporter and producer may differ. The notify party may differ from the consignee."
-    >
-      <div class="partners">
-        <app-party-field
-          id="exporter"
-          label="Exporter"
-          icon="building"
-          [group]="party('exporter')"
-        />
-        <app-party-field
-          id="producer"
-          label="Producer"
-          icon="factory"
-          [group]="party('producer')"
-        />
-        <app-party-field
-          id="consignee"
-          label="Consignee"
-          icon="users"
-          [group]="party('consignee')"
-        />
-        <app-party-field
-          id="notify"
-          label="Notify party"
-          icon="bell"
-          [group]="party('notifyParty')"
-        />
-        <app-party-field
-          id="forwarder"
-          label="Freight forwarder"
-          icon="truck"
-          [group]="party('freightForwarder')"
-        />
-        <app-party-field
-          id="shipping-line"
-          label="Shipping line"
-          icon="anchor"
-          [group]="party('shippingLine')"
-        />
-      </div>
-
-      <label class="check">
-        <input
-          type="checkbox"
-          [checked]="notifySameAsConsignee()"
-          (change)="onNotifyToggle($any($event.target).checked)"
-        />
-        <span>Notify party is the same as the consignee</span>
-      </label>
-    </app-panel>
-
-    <app-panel
-      title="Routing &amp; schedule"
-      subtitle="Destination, ports and the estimated time of departure."
-    >
-      <div class="routing">
-        <div class="field">
-          <label class="field__label" for="destination"
-            >Destination <span class="req">*</span></label
-          >
-          <input
-            id="destination"
-            class="control"
-            type="text"
-            formControlName="destination"
-            placeholder="e.g. Spain — Vigo"
-            [attr.aria-invalid]="showError('destination')"
-          />
-          @if (showError('destination')) {
-            <span class="field__error" role="alert">Destination is required.</span>
-          }
+@if (loadingProject()) {
+  <div class="table-card" aria-busy="true" aria-label="Loading project">
+    <div class="skeleton-table">
+      @for (row of [1, 2, 3, 4]; track row) {
+        <div class="skeleton-row">
+          <span class="skeleton skeleton--md"></span>
+          <span class="skeleton skeleton--lg"></span>
         </div>
-
-        <div class="field">
-          <label class="field__label" for="loadingPort"
-            >Loading port <span class="req">*</span></label
-          >
-          <input
-            id="loadingPort"
-            class="control"
-            type="text"
-            formControlName="loadingPort"
-            placeholder="e.g. Tanger Med"
-            [attr.aria-invalid]="showError('loadingPort')"
-          />
-          @if (showError('loadingPort')) {
-            <span class="field__error" role="alert">Loading port is required.</span>
-          }
-        </div>
-
-        <div class="field">
-          <label class="field__label" for="dischargePort">
-            Discharge port <span class="req">*</span>
+      }
+    </div>
+  </div>
+} @else {
+  <form #projectForm class="project-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="project-form__sections">
+      <app-panel
+        title="Project reference"
+        subtitle="A unique human-readable identifier for the shipment."
+      >
+        <div class="field" style="max-width: 360px">
+          <label class="field__label" for="reference">
+            Project reference <span class="req">*</span>
           </label>
           <input
-            id="dischargePort"
-            class="control"
+            id="reference"
+            class="control mono"
             type="text"
-            formControlName="dischargePort"
-            placeholder="e.g. Vigo"
-            [attr.aria-invalid]="showError('dischargePort')"
+            formControlName="reference"
+            placeholder="EXP-2026-0001"
+            autocomplete="off"
+            [attr.aria-invalid]="showError('reference')"
+            [attr.aria-describedby]="'reference-hint'"
           />
-          @if (showError('dischargePort')) {
-            <span class="field__error" role="alert">Discharge port is required.</span>
-          }
-        </div>
-
-        <div class="field">
-          <label class="field__label" for="etd">
-            Estimated time of departure (ETD) <span class="req">*</span>
-          </label>
-          <input
-            id="etd"
-            class="control"
-            type="date"
-            formControlName="etd"
-            [min]="today"
-            [attr.aria-invalid]="showError('etd')"
-          />
-          @if (showError('etd')) {
+          @if (showError('reference')) {
             <span class="field__error" role="alert">
-              @if (form.controls.etd.hasError('required')) {
-                ETD is required.
-              } @else if (form.controls.etd.hasError('pastDate')) {
-                ETD cannot be in the past.
+              @if (form.controls.reference.hasError('required')) {
+                Reference is required.
+              } @else if (form.controls.reference.hasError('pattern')) {
+                Use up to 80 characters: letters, digits, dot, dash, underscore or slash (e.g.
+                EXP-2026-0001).
+              } @else if (form.controls.reference.hasError('server')) {
+                {{ form.controls.reference.getError('server') }}
               }
+            </span>
+          } @else {
+            <span class="field__hint" id="reference-hint">
+              Uppercase, globally unique. Suggested automatically; edit if needed.
             </span>
           }
         </div>
-      </div>
-    </app-panel>
-  </div>
+      </app-panel>
 
-  <div class="project-form__actions">
-    <a class="btn btn--ghost" routerLink="/projects">Cancel</a>
-    <button class="btn btn--primary" type="submit" [disabled]="submitting()">
-      @if (submitting()) {
-        <span class="spinner" aria-hidden="true"></span>
-        Creating…
-      } @else {
-        <app-icon name="check" [size]="18" />
-        Create project
-      }
-    </button>
-  </div>
-</form>
+      <app-panel
+        title="Business partners"
+        subtitle="Exporter and producer may differ. The notify party may differ from the consignee."
+      >
+        <div class="partners">
+          <div class="field">
+            <label class="field__label" for="exporterId">Exporter <span class="req">*</span></label>
+            <select
+              id="exporterId"
+              class="control"
+              formControlName="exporterId"
+              [attr.aria-invalid]="showError('exporterId')"
+            >
+              <option value="" disabled>Select an exporter…</option>
+              @for (org of exporters(); track org.id) {
+                <option [value]="org.id">{{ org.legalName }}</option>
+              }
+            </select>
+            @if (showError('exporterId')) {
+              <span class="field__error" role="alert">Exporter is required.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="producerIds">
+              Producers <span class="req">*</span>
+            </label>
+            <select
+              id="producerIds"
+              class="control"
+              formControlName="producerIds"
+              multiple
+              size="4"
+              [attr.aria-invalid]="showError('producerIds')"
+              [attr.aria-describedby]="'producerIds-hint'"
+            >
+              @for (org of producers(); track org.id) {
+                <option [value]="org.id">{{ org.legalName }}</option>
+              }
+            </select>
+            @if (showError('producerIds')) {
+              <span class="field__error" role="alert">Select at least one producer.</span>
+            } @else {
+              <span class="field__hint" id="producerIds-hint">
+                Hold Ctrl (or Cmd) to select more than one.
+              </span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="consigneeId">
+              Consignee <span class="req">*</span>
+            </label>
+            <select
+              id="consigneeId"
+              class="control"
+              formControlName="consigneeId"
+              [attr.aria-invalid]="showError('consigneeId')"
+            >
+              <option value="" disabled>Select a consignee…</option>
+              @for (org of consignees(); track org.id) {
+                <option [value]="org.id">{{ org.legalName }}</option>
+              }
+            </select>
+            @if (showError('consigneeId')) {
+              <span class="field__error" role="alert">Consignee is required.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="notifyPartyId">Notify party</label>
+            <select
+              id="notifyPartyId"
+              class="control"
+              formControlName="notifyPartyId"
+              [attr.aria-invalid]="showError('notifyPartyId')"
+            >
+              <option value="">None</option>
+              @for (org of notifyParties(); track org.id) {
+                <option [value]="org.id">{{ org.legalName }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="freightForwarderId">Freight forwarder</label>
+            <select id="freightForwarderId" class="control" formControlName="freightForwarderId">
+              <option value="">None</option>
+              @for (org of forwarders(); track org.id) {
+                <option [value]="org.id">{{ org.legalName }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="shippingLineId">Shipping line</label>
+            <select id="shippingLineId" class="control" formControlName="shippingLineId">
+              <option value="">None</option>
+              @for (org of shippingLines(); track org.id) {
+                <option [value]="org.id">{{ org.legalName }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <label class="check">
+          <input
+            type="checkbox"
+            [checked]="notifySameAsConsignee()"
+            (change)="onNotifyToggle($any($event.target).checked)"
+          />
+          <span>Notify party is the same as the consignee</span>
+        </label>
+      </app-panel>
+
+      <app-panel
+        title="Routing &amp; schedule"
+        subtitle="Destination, ports and the estimated time of departure."
+      >
+        <div class="routing">
+          <div class="field">
+            <label class="field__label" for="destinationCountryCode">
+              Destination country <span class="req">*</span>
+            </label>
+            <select
+              id="destinationCountryCode"
+              class="control"
+              formControlName="destinationCountryCode"
+              [attr.aria-invalid]="showError('destinationCountryCode')"
+            >
+              <option value="" disabled>Select a country…</option>
+              @for (country of countries(); track country.code) {
+                <option [value]="country.code">{{ country.name }} ({{ country.code }})</option>
+              }
+            </select>
+            @if (showError('destinationCountryCode')) {
+              <span class="field__error" role="alert">Destination country is required.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="portOfLoadingId">
+              Port of loading <span class="req">*</span>
+            </label>
+            <select
+              id="portOfLoadingId"
+              class="control"
+              formControlName="portOfLoadingId"
+              [attr.aria-invalid]="showError('portOfLoadingId')"
+            >
+              <option value="" disabled>Select a port…</option>
+              @for (port of ports(); track port.id) {
+                <option [value]="port.id">{{ port.name }} ({{ port.countryCode }})</option>
+              }
+            </select>
+            @if (showError('portOfLoadingId')) {
+              <span class="field__error" role="alert">Port of loading is required.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="portOfDischargeId">
+              Port of discharge <span class="req">*</span>
+            </label>
+            <select
+              id="portOfDischargeId"
+              class="control"
+              formControlName="portOfDischargeId"
+              [attr.aria-invalid]="showError('portOfDischargeId')"
+            >
+              <option value="" disabled>Select a port…</option>
+              @for (port of ports(); track port.id) {
+                <option [value]="port.id">{{ port.name }} ({{ port.countryCode }})</option>
+              }
+            </select>
+            @if (showError('portOfDischargeId')) {
+              <span class="field__error" role="alert">Port of discharge is required.</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="expectedDepartureDate">
+              Estimated time of departure (ETD)
+            </label>
+            <input
+              id="expectedDepartureDate"
+              class="control"
+              type="date"
+              formControlName="expectedDepartureDate"
+            />
+            <span class="field__hint">Optional. Historical dates are allowed.</span>
+          </div>
+        </div>
+      </app-panel>
+
+      <app-panel title="Notes" subtitle="Optional internal notes for this shipment.">
+        <div class="field">
+          <label class="field__label" for="notes">Notes</label>
+          <textarea
+            id="notes"
+            class="control"
+            rows="4"
+            formControlName="notes"
+            [attr.maxlength]="notesMaxLength"
+            [attr.aria-invalid]="showError('notes')"
+          ></textarea>
+          <span class="field__hint">
+            {{ form.controls.notes.value?.length ?? 0 }} / {{ notesMaxLength }} characters.
+          </span>
+          @if (showError('notes')) {
+            <span class="field__error" role="alert">
+              Notes must be {{ notesMaxLength }} characters or fewer.
+            </span>
+          }
+        </div>
+      </app-panel>
+    </div>
+
+    <div class="project-form__actions">
+      <a class="btn btn--ghost" routerLink="/projects">Cancel</a>
+      <button class="btn btn--primary" type="submit" [disabled]="submitting()">
+        @if (submitting()) {
+          <span class="spinner" aria-hidden="true"></span>
+          Saving…
+        } @else {
+          <app-icon name="check" [size]="18" />
+          {{ mode() === 'edit' ? 'Save changes' : 'Create project' }}
+        }
+      </button>
+    </div>
+  </form>
+}

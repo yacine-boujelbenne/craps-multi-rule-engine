@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { formatDate, formatDateTime, initials, relativeToToday, suggestReference } from './format';
 import { Project } from '../models/project.model';
 
+function localIso(offsetDays: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 describe('format utils', () => {
   it('formats ISO dates for display', () => {
     expect(formatDate('2026-11-11')).toBe('11 Nov 2026');
@@ -18,9 +25,8 @@ describe('format utils', () => {
   });
 
   it('describes dates relative to today', () => {
-    const inThreeDays = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
-    expect(relativeToToday(inThreeDays)).toBe('in 3 days');
-    expect(relativeToToday(new Date().toISOString().slice(0, 10))).toBe('today');
+    expect(relativeToToday(localIso(3))).toBe('in 3 days');
+    expect(relativeToToday(localIso(0))).toBe('today');
   });
 
   it('builds initials from a name', () => {

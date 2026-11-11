@@ -79,7 +79,7 @@
           <li>
             <a class="project-row" [routerLink]="['/projects', project.id]">
               <span class="project-row__ref mono">{{ project.reference }}</span>
-              <span class="project-row__customer">{{ project.consignee.name }}</span>
+              <span class="project-row__customer">{{ consigneeName(project.consigneeId) }}</span>
               <span class="project-row__meta">
                 <app-status-badge
                   [label]="statusMeta(project.status).label"
@@ -122,12 +122,14 @@
                 <app-icon name="ship" [size]="18" />
               </span>
               <span class="departure-row__body">
-                <span class="departure-row__dest">{{ project.destination }}</span>
+                <span class="departure-row__dest">{{
+                  countryName(project.destinationCountryCode)
+                }}</span>
                 <span class="departure-row__ref mono">{{ project.reference }}</span>
               </span>
               <span class="departure-row__etd">
-                <strong>{{ formatDate(project.etd) }}</strong>
-                <small>{{ relativeToToday(project.etd) }}</small>
+                <strong>{{ formatDate(project.expectedDepartureDate) }}</strong>
+                <small>{{ relativeToToday(project.expectedDepartureDate) }}</small>
               </span>
             </a>
           </li>

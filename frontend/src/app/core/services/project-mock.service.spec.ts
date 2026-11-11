@@ -1,21 +1,35 @@
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CreateProjectRequest } from '../models/project.model';
+import { ApiProblemError, CreateProjectRequest } from '../models/project.model';
 import { ProjectMockService } from './project-mock.service';
+
+const ORG = {
+  exporter: '00000000-0000-4000-8000-000000000101',
+  producer: '00000000-0000-4000-8000-000000000102',
+  consignee: '00000000-0000-4000-8000-000000000201',
+  forwarder: '00000000-0000-4000-8000-000000000401',
+  line: '00000000-0000-4000-8000-000000000501',
+};
+
+const PORT = {
+  loading: '00000000-0000-4000-8000-000000000601',
+  discharge: '00000000-0000-4000-8000-000000000701',
+};
 
 function validRequest(overrides: Partial<CreateProjectRequest> = {}): CreateProjectRequest {
   return {
     reference: 'EXP-2026-0042',
-    exporter: { name: 'Atlantic Blue Seafood Co.', country: 'Morocco' },
-    producer: { name: 'Nordic Catch Processing', country: 'Morocco' },
-    consignee: { name: 'Iberia Import S.L.', country: 'Spain' },
-    notifyParty: { name: 'Iberia Import S.L.', country: 'Spain' },
-    freightForwarder: { name: 'TransGlobal Logistics', country: 'Morocco' },
-    shippingLine: { name: 'Maersk Line' },
-    destination: 'Spain — Vigo',
-    loadingPort: 'Tanger Med',
-    dischargePort: 'Vigo',
-    etd: '2027-01-15',
+    exporterId: ORG.exporter,
+    producerIds: [ORG.producer],
+    consigneeId: ORG.consignee,
+    notifyPartyId: ORG.consignee,
+    freightForwarderId: ORG.forwarder,
+    shippingLineId: ORG.line,
+    destinationCountryCode: 'ES',
+    portOfLoadingId: PORT.loading,
+    portOfDischargeId: PORT.discharge,
+    expectedDepartureDate: '2027-01-15',
+    notes: 'Priority shipment.',
     ...overrides,
   };
 }
@@ -25,68 +39,93 @@ describe('ProjectMockService', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    service = new ProjectMockService();
+    service = new ProjectMockService(0);
   });
 
   afterEach(() => {
     localStorage.clear();
   });
 
-  it('lists seeded projects', async () => {
-    const projects = await firstValueFrom(service.list());
-    expect(projects.length).toBeGreaterThan(0);
+  it('lists a page of seeded projects', async () => {
+    const page = await firstValueFrom(service.list());
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.page).toBe(0);
+    expect(page.size).toBe(20);
+    expect(page.totalElements).toBeGreaterThanOrEqual(page.items.length);
   });
 
-  it('creates a draft project with the full document workflow', async () => {
+  it('paginates results', async () => {
+    const page = await firstValueFrom(service.list({ page: 0, size: 3 }));
+    expect(page.items.length).toBe(3);
+    expect(page.totalPages).toBeGreaterThan(1);
+  });
+
+  it('creates a draft project with contract defaults', async () => {
     const created = await firstValueFrom(service.create(validRequest()));
 
     expect(created.reference).toBe('EXP-2026-0042');
-    expect(created.status).toBe('DRAFT');
-    expect(created.documentSteps).toHaveLength(8);
-    expect(created.documentSteps.every((step) => step.status === 'NOT_STARTED')).toBe(true);
+    expect(created.status).toBe('DRAFT_DATA');
+    expect(created.version).toBe(0);
+    expect(created.producerIds).toEqual([ORG.producer]);
     expect(created.id).toBeTruthy();
   });
 
-  it('generates a reference when none is provided', async () => {
-    const created = await firstValueFrom(service.create(validRequest({ reference: '' })));
-    expect(created.reference).toMatch(/^EXP-\d{4}-\d{4}$/);
+  it('normalizes the reference to trimmed uppercase', async () => {
+    const created = await firstValueFrom(
+      service.create(validRequest({ reference: ' exp-2026-0042 ' })),
+    );
+    expect(created.reference).toBe('EXP-2026-0042');
   });
 
-  it('filters by search term', async () => {
-    const results = await firstValueFrom(service.list({ search: 'vigo' }));
-    expect(results.length).toBeGreaterThan(0);
-    expect(
-      results.every((project) =>
-        `${project.reference} ${project.consignee.name} ${project.destination}`
-          .toLowerCase()
-          .includes('vigo'),
-      ),
-    ).toBe(true);
+  it('rejects a duplicate reference with a 409 problem', async () => {
+    await firstValueFrom(service.create(validRequest({ reference: 'EXP-2026-0500' })));
+    await expect(
+      firstValueFrom(service.create(validRequest({ reference: 'exp-2026-0500' }))),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('filters by reference prefix (q)', async () => {
+    const page = await firstValueFrom(service.list({ q: 'EXP-2026-0001' }));
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((project) => project.reference.startsWith('EXP-2026-0001'))).toBe(true);
   });
 
   it('filters by status', async () => {
-    const results = await firstValueFrom(service.list({ status: 'DRAFT' }));
-    expect(results.every((project) => project.status === 'DRAFT')).toBe(true);
+    const page = await firstValueFrom(service.list({ status: 'COMPLETE' }));
+    expect(page.items.every((project) => project.status === 'COMPLETE')).toBe(true);
   });
 
   it('retrieves a project by id and rejects unknown ids', async () => {
-    const [first] = await firstValueFrom(service.list());
+    const page = await firstValueFrom(service.list());
+    const first = page.items[0];
     const fetched = await firstValueFrom(service.get(first.id));
     expect(fetched.id).toBe(first.id);
 
-    await expect(firstValueFrom(service.get('missing-id'))).rejects.toThrow();
+    await expect(firstValueFrom(service.get('missing-id'))).rejects.toBeInstanceOf(ApiProblemError);
   });
 
-  it('updates a project', async () => {
-    const [first] = await firstValueFrom(service.list());
-    const updated = await firstValueFrom(service.update(first.id, { status: 'COMPLETE' }));
-    expect(updated.status).toBe('COMPLETE');
+  it('updates a project with a matching expectedVersion', async () => {
+    const page = await firstValueFrom(service.list());
+    const first = page.items[0];
+    const updated = await firstValueFrom(
+      service.update(first.id, { expectedVersion: first.version, notes: 'Updated note' }),
+    );
+    expect(updated.notes).toBe('Updated note');
+    expect(updated.version).toBe(first.version + 1);
+  });
+
+  it('rejects a stale expectedVersion with a 409 problem', async () => {
+    const page = await firstValueFrom(service.list());
+    const first = page.items[0];
+    await expect(
+      firstValueFrom(service.update(first.id, { expectedVersion: first.version + 99 })),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it('persists created projects to storage', async () => {
     await firstValueFrom(service.create(validRequest({ reference: 'EXP-2026-0099' })));
-    const reloaded = new ProjectMockService();
-    const projects = await firstValueFrom(reloaded.list());
-    expect(projects.some((project) => project.reference === 'EXP-2026-0099')).toBe(true);
+    const reloaded = new ProjectMockService(0);
+    const page = await firstValueFrom(reloaded.list({ size: 100 }));
+    expect(page.items.some((project) => project.reference === 'EXP-2026-0099')).toBe(true);
   });
 });

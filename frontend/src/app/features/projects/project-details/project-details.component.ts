@@ -3,14 +3,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 import {
+  COMPLETED_DOC_STATUSES,
   DOCUMENT_STATUS_META,
   DOCUMENT_STEP_DESCRIPTIONS,
   DOCUMENT_STEP_LABELS,
-  DOCUMENT_STEP_ORDER,
   DocumentStepKey,
-  PROJECT_STATUS_META,
-  Project,
-} from '../../../core/models/project.model';
+  deriveDocumentSteps,
+} from '../../../core/models/document-step';
+import { PROJECT_STATUS_META, Project } from '../../../core/models/project.model';
+import { DirectoryStore } from '../../../core/services/directory.store';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ProjectStore } from '../../../core/services/project.store';
 import { formatDate, formatDateTime, initials, relativeToToday } from '../../../core/utils/format';
@@ -19,8 +20,6 @@ import { IconComponent, IconName } from '../../../shared/components/icon/icon.co
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { PanelComponent } from '../../../shared/components/panel/panel.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
-
-const COMPLETED_DOC_STATUSES = ['READY', 'APPROVED', 'EXTERNAL_ISSUED'];
 
 @Component({
   selector: 'app-project-details',
@@ -39,47 +38,87 @@ const COMPLETED_DOC_STATUSES = ['READY', 'APPROVED', 'EXTERNAL_ISSUED'];
 export class ProjectDetailsComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(ProjectStore);
+  private readonly directory = inject(DirectoryStore);
   private readonly notifications = inject(NotificationService);
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly project = signal<Project | null>(null);
 
-  protected readonly steps = DOCUMENT_STEP_ORDER;
   protected readonly stepLabels = DOCUMENT_STEP_LABELS;
   protected readonly stepDescriptions = DOCUMENT_STEP_DESCRIPTIONS;
   protected readonly docStatusMeta = DOCUMENT_STATUS_META;
   protected readonly projectStatusMeta = PROJECT_STATUS_META;
 
-  protected readonly completedSteps = computed(() => {
+  protected readonly steps = computed(() => {
     const project = this.project();
-    if (!project) {
-      return 0;
-    }
-    return project.documentSteps.filter((step) => COMPLETED_DOC_STATUSES.includes(step.status))
-      .length;
+    return project ? deriveDocumentSteps(project.status) : [];
   });
 
-  protected readonly progressPercent = computed(() =>
-    Math.round((this.completedSteps() / this.steps.length) * 100),
+  protected readonly completedSteps = computed(
+    () => this.steps().filter((step) => COMPLETED_DOC_STATUSES.includes(step.status)).length,
+  );
+
+  protected readonly progressPercent = computed(() => {
+    const total = this.steps().length;
+    return total === 0 ? 0 : Math.round((this.completedSteps() / total) * 100);
+  });
+
+  protected readonly consigneeName = computed(() => {
+    const project = this.project();
+    return project ? this.directory.organizationName(project.consigneeId) : '—';
+  });
+
+  protected readonly forwarderName = computed(() =>
+    this.directory.organizationName(this.project()?.freightForwarderId),
+  );
+
+  protected readonly shippingLineName = computed(() =>
+    this.directory.organizationName(this.project()?.shippingLineId),
   );
 
   protected readonly partners = computed(() => {
     const project = this.project();
     if (!project) {
-      return [];
+      return [] as { label: string; icon: IconName; name: string }[];
     }
     return [
-      { label: 'Exporter', icon: 'building' as IconName, party: project.exporter },
-      { label: 'Producer', icon: 'factory' as IconName, party: project.producer },
-      { label: 'Consignee', icon: 'users' as IconName, party: project.consignee },
-      { label: 'Notify party', icon: 'bell' as IconName, party: project.notifyParty },
-      { label: 'Freight forwarder', icon: 'truck' as IconName, party: project.freightForwarder },
-      { label: 'Shipping line', icon: 'anchor' as IconName, party: project.shippingLine },
+      {
+        label: 'Exporter',
+        icon: 'building' as IconName,
+        name: this.directory.organizationName(project.exporterId),
+      },
+      {
+        label: 'Producers',
+        icon: 'factory' as IconName,
+        name: this.directory.organizationNames(project.producerIds).join(', ') || '—',
+      },
+      {
+        label: 'Consignee',
+        icon: 'users' as IconName,
+        name: this.directory.organizationName(project.consigneeId),
+      },
+      {
+        label: 'Notify party',
+        icon: 'bell' as IconName,
+        name: this.directory.organizationName(project.notifyPartyId),
+      },
+      {
+        label: 'Freight forwarder',
+        icon: 'truck' as IconName,
+        name: this.directory.organizationName(project.freightForwarderId),
+      },
+      {
+        label: 'Shipping line',
+        icon: 'anchor' as IconName,
+        name: this.directory.organizationName(project.shippingLineId),
+      },
     ];
   });
 
   constructor() {
+    this.directory.ensureLoaded();
+
     this.route.paramMap
       .pipe(
         switchMap((params) => {
@@ -101,9 +140,16 @@ export class ProjectDetailsComponent {
       });
   }
 
+  protected countryName(code: string | null | undefined): string {
+    return this.directory.countryName(code);
+  }
+
+  protected portName(id: string | null | undefined): string {
+    return this.directory.portName(id);
+  }
+
   protected stepStatus(key: DocumentStepKey) {
-    const step = this.project()?.documentSteps.find((item) => item.key === key);
-    return step?.status ?? 'NOT_STARTED';
+    return this.steps().find((item) => item.key === key)?.status ?? 'NOT_STARTED';
   }
 
   protected isStepDone(key: DocumentStepKey): boolean {
