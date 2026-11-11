@@ -17,6 +17,16 @@
 9. Which document inputs also need generated PDF output (invoice/packing list)?
 10. Confirm deadline business/calendars for early draft invoice.
 
+## Backend Project API verification — BLOCKED (2026-11-11)
+
+Agent 1 supplied the frozen contract and migration; Agent 2 implemented the four
+Project endpoints on `feat/backend-projects`. Maven Central DNS resolution fails
+and Docker socket access is denied, so compilation and PostgreSQL integration
+tests cannot be verified here. Supply a Java 21/Maven environment with repository
+and Docker access, then run `cd backend && ./mvnw verify` before acceptance.
+The implementation report is `backend/PROJECT-IMPLEMENTATION-HANDOFF.md`.
+No completion box has been checked.
+
 # Newly confirmed 2026-11-11
 - Catch input is **pre-processing**, around 22,000 kg in the sample; exported finished net is around 19,200 kg, separated into three box-size categories. Do not equate raw catch mass to finished export mass.
 - Shipping List is separate from Packing List; dossier pages 16, 17, 22 show vessel catch quantity/date information and vessel/lot recap, attached among HC documents.
