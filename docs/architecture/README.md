@@ -1,6 +1,6 @@
 # Phase 1 architecture foundations
 
-This slice provides the database and bootstrap for manual shipment project entry. One project **is** one shipment. It does not implement business REST controllers, Angular, OCR/imports, PDF generation, workflow transitions, or an identity provider. Agent 2 implements project behavior against `../contracts/projects-v1.yaml`.
+This branch now combines the architect's database/bootstrap with Agent 2's Project REST implementation. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions and an identity provider remain outside this delivery. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Runtime acceptance remains open.
 
 ## Layout and decisions
 
@@ -8,8 +8,7 @@ This slice provides the database and bootstrap for manual shipment project entry
 backend/                  Java 21, Spring Boot 3.5.16, Maven
   src/main/java/com/exportdocs/
     ExportDocsApplication.java
-    infrastructure/       shared startup/security fallback
-    project/              Agent 2: api, application, domain, infrastructure
+    project/              Agent 2 implementation: api, application, domain, infrastructure
   src/main/resources/
     application.yml
     db/migration/         Flyway is the sole schema owner
@@ -104,6 +103,8 @@ Audit triggers run for all 23 non-audit business tables after installation and r
 ## Project creation and handoff
 
 See `../contracts/README.md` for the exact atomic create/PATCH algorithm, ID mapping, audit context and error semantics. Minimal request is `{"reference":"DEMO-001"}`. Agent 2 saves one project (DRAFT_DATA, version 0), transport extension, creator access and audit records in a single transaction, returning the documented response and Location. Parties/ports/dates are optional and may arrive later. Validation for document readiness is separate from draft persistence.
+
+Project get/list use REPEATABLE READ to keep root version, child rows and pagination counts in one snapshot. Write/allocation transactions retain their intended default isolation.
 
 The frontend generates its client from `../contracts/projects-v1.yaml` and implements only those types/operations. Nullable response fields are always present. Presence-aware PATCH commands must retain explicit null vs omitted. Neither this architect nor the frontend should duplicate Agent 2's business controllers. Directory selectors need Agent 2 lookup APIs or fictional development fixtures; directory endpoints are not yet contracted.
 

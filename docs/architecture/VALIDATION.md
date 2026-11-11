@@ -1,6 +1,6 @@
 # Phase 1 validation and delivery — 2026-11-11
 
-**Implementation prepared; runtime acceptance remains open.** PostgreSQL startup, migration execution, Java compilation, application startup and integration tests have not passed in this environment. No playbook completion boxes were changed.
+**Integrated source implementation prepared; runtime acceptance remains open.** PostgreSQL startup, migration execution, Java compilation, application startup and integration tests have not passed in this environment. No playbook completion boxes were changed.
 
 ## Environment and executed checks
 
@@ -86,3 +86,11 @@ To integrate without importing that unrelated baseline commit, cherry-pick archi
 Agent 2 has already cherry-picked the first two commits and owns business API/security implementation. Agent 2 may replace FoundationSecurityConfiguration with its real security configuration, avoiding ambiguous normal-configuration bean ordering. No other agent should edit V1 or silently diverge from the published contract. Reserve the next migration version through the architect before implementing further schema changes.
 
 The frontend agent consumes `docs/contracts/projects-v1.yaml` and its documented null/update/list semantics. The initial request is only `{"reference":"DEMO-001"}`; response status is DRAFT_DATA, optional scalar fields null and producerIds []. Directory lookup endpoints remain an Agent 2 dependency, not an invented frontend schema.
+
+## Integrated Agent 2 delivery
+
+Agent 2's commits ad3e86b and 26c504b were cherry-picked without conflicts as 5765d59 and 949cae3. They add the four Project endpoints, JPA/MapStruct/presence-aware validation, transactional service, role/project access, JWT resource-server security, unit/API tests and the implementation handoff. The agreed security configuration replaces the original foundation fallback class. See `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for the additional file inventory and exact API/authentication instructions. Existing source-review corrections are in INTEGRATION-REVIEW.md; its formerly stale backend report has now been rewritten and inspected.
+
+On the combined tree, the 10 offline contract tests, Compose configuration, git diff --check and the check for no frontend content changes passed. Agent 2 separately reports five isolated ProjectActorTest cases passed with cached JUnit and Java source syntax parsing at release 21; these are not evidence of a Spring build or database integration. No new success is claimed for Maven, Flyway execution, PostgreSQL startup or readiness. All runtime blockers above remain.
+
+The architecture branch now contains the integrated backend; consumers can base a new integration branch on feat/architecture-phase1. If integrating only into an existing backend branch, avoid reapplying its already-cherry-picked foundation/API commits. Root frontend content remains unchanged relative to the preserved baseline; no original shared checkout branch was merged or overwritten.

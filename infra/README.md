@@ -10,7 +10,7 @@ docker compose up -d --wait db
 ./infra/scripts/backend-local.sh
 ```
 
-The helper sources the operator-controlled local .env, exports its values, enters backend and runs Spring Boot. Compose reads .env itself; Spring Boot does not automatically load it. For direct Maven runs, export variables explicitly. Standard datasource URL/username/password variables override local POSTGRES_* settings for managed PostgreSQL. No .env or real data is committed.
+The helper sources the operator-controlled local .env (shell-compatible assignments; quote special characters), exports its values, enters backend and runs Spring Boot. Compose reads .env itself; Spring Boot does not automatically load it. For direct Maven runs, export variables explicitly. Standard datasource URL/username/password variables override local POSTGRES_* settings for managed PostgreSQL. No .env or real data is committed.
 
 In another terminal:
 
@@ -22,7 +22,7 @@ cd backend
 ./mvnw verify
 ```
 
-Health is Boot Actuator, not a custom business controller. Readiness includes the database; liveness does not. Details are hidden. Database and backend bind to loopback by default. Set SERVER_ADDRESS explicitly for a container/deployment. Business routes are denied by the fallback filter until Agent 2 supplies its real authentication/authorization configuration. Agent 2 may replace FoundationSecurityConfiguration; its bean-order fallback is not an authentication system.
+Health is Boot Actuator, not a custom business controller. Readiness includes the database; liveness does not. Details are hidden. Database and backend bind to loopback by default. Set SERVER_ADDRESS explicitly for a container/deployment. Agent 2's integrated security requires a validated JWT plus a provisioned active application user and database roles/project access. Without a configured trusted issuer, all business tokens are rejected while health remains public. Set SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI, optionally SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI, and EXPORTDOCS_SECURITY_AUDIENCE. See `../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for provisioning and authenticated API examples. This repository does not supply an identity provider.
 
 `backend/mvnw` is a small installed-Maven launcher, **not** an Apache downloading wrapper. This makes the offline prerequisite explicit and retains the repository's `./mvnw verify` command. Boot's parent manages plugin/dependency versions. Compilation target is Java 21. `verify` runs JUnit/Testcontainers tests through Failsafe; Docker absence fails verification, with no disabled/skipped-container success gate. Testcontainers starts an isolated PostgreSQL and does not modify the local Compose database. There is no H2 substitute.
 

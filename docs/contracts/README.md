@@ -1,6 +1,6 @@
 # Phase 1 contracts — v1.0.0
 
-`projects-v1.yaml` is the authoritative OpenAPI 3.0.3 input for Agent 2 and Angular client generation. It describes intended endpoints; the architecture skeleton implements no business controller. Reference-only creation was confirmed by the owner on 2026-11-11. Initial status is `DRAFT_DATA`, aligning with Agent 2's explicit assignment; this replaces the older plan's `DRAFT` spelling. The other status names follow the master plan. Status transitions are deferred.
+`projects-v1.yaml` is the authoritative OpenAPI 3.0.3 input for Agent 2 and Angular client generation. Agent 2's implementation of these endpoints is integrated on feat/architecture-phase1; its source and tests have been reviewed but full build/runtime verification remains blocked. Reference-only creation was confirmed by the owner on 2026-11-11. Initial status is `DRAFT_DATA`, aligning with Agent 2's explicit assignment; this replaces the older plan's `DRAFT` spelling. The other status names follow the master plan. Status transitions are deferred.
 
 ## Integration ownership
 
@@ -43,4 +43,4 @@ Page numbers are zero-based; size defaults to 20, max 100. Optional status and l
 
 ## Deliberate scope limits
 
-Directory CRUD and seed users are not implemented here. Frontend needs authorized directory lookups or fictional development fixtures from Agent 2; never embed real customer data. Business API routes remain denied until Agent 2 supplies its security integration. This contract does not claim a working JWT issuer. It does not implement workflow transitions, document generation, imports, or OCR.
+Directory CRUD and seed users are not implemented here. Frontend needs authorized directory lookups or fictional development fixtures from Agent 2; never embed real customer data. The integrated business API requires a validated JWT and a provisioned active application user. With no trusted issuer configured, all business tokens are rejected. This contract does not supply a JWT issuer. It does not implement workflow transitions, document generation, imports, or OCR.

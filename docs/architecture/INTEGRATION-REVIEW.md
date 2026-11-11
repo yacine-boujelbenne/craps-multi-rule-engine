@@ -13,3 +13,5 @@ At review publication, findings were handed to Agent 2 for correction and verifi
 ## Follow-up: corrections checked in source
 
 Agent 2 subsequently changed get/list to explicit REPEATABLE_READ and added a latch-controlled reader/writer integration test that commits a child/port PATCH between root and detail reads. The parser now requires canonical hyphenated UUID text for scalar IDs and producer arrays, plus YYYY-MM-DD text before date binding. Added parser tests reject empty, whitespace and Base64 values. These specific changes were inspected read-only and address findings 1 and 2 at the source level. Their regression tests still have not compiled or executed. Agent 2 reported that the stale implementation handoff was being rewritten; that documentation rewrite was not yet verified during this follow-up.
+
+The completed backend handoff was subsequently inspected and both Agent 2 delivery commits integrated on feat/architecture-phase1. The stale-report finding is resolved. Full runtime acceptance remains open.
