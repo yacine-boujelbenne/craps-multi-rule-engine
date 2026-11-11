@@ -1,0 +1,485 @@
+openapi: 3.0.3
+info:
+  title: Export Documentation Platform - Project API
+  version: 1.0.0
+  description: Frozen Phase 1 contract. Reference-only creation is owner-confirmed.
+    Operations are implemented by Agent 2; infrastructure alone does not expose them.
+servers:
+- url: http://localhost:8080
+security:
+- bearerAuth: []
+tags:
+- name: Projects
+paths:
+  /api/projects:
+    post:
+      tags:
+      - Projects
+      operationId: createProject
+      summary: Create one shipment project in DRAFT_DATA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Created; version 0.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+          headers:
+            Location:
+              description: /api/projects/{id}
+              schema:
+                type: string
+        '400': &id001
+          description: Malformed JSON, unknown field, invalid UUID/date/field or invalid
+            pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401': &id002
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403': &id003
+          description: Insufficient role/project access.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409': &id005
+          description: Duplicate reference or stale expectedVersion.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422': &id006
+          description: Unknown/inactive organization or port, or incompatible organization
+            role.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      tags:
+      - Projects
+      operationId: listProjects
+      summary: List authorized projects, ordered by createdAt DESC, id DESC
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProjectStatus'
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Trimmed, case-insensitive literal reference prefix. Escape
+            SQL wildcard characters; never interpret them as patterns.
+      responses:
+        '200':
+          description: Page; totalPages is 0 when empty. Filters combine with AND.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectPage'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+  /api/projects/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      tags:
+      - Projects
+      operationId: getProject
+      summary: Read a shipment project
+      responses:
+        '200':
+          description: Project with every optional response field present as null
+            or [].
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': &id004
+          description: Project does not exist or is not visible to the caller.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags:
+      - Projects
+      operationId: updateProject
+      summary: Atomically patch permitted setup fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Saved; version increments once for an effective change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400': *id001
+        '401': *id002
+        '403': *id003
+        '404': *id004
+        '409': *id005
+        '422': *id006
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC/JWT integration is Agent 2 responsibility. Foundation denies
+        business routes by default.
+  schemas:
+    ProjectStatus:
+      type: string
+      enum:
+      - DRAFT_DATA
+      - IN_PROGRESS
+      - READY_FOR_DRAFT_REVIEW
+      - DRAFT_REVIEWED
+      - AWAITING_EXTERNAL_ISSUANCE
+      - OFFICIAL_DOCUMENTS_RECEIVED
+      - COMPLETE
+      - ARCHIVED
+      description: DRAFT_DATA is the initial status (called DRAFT in the older master
+        plan). Transitions require a future explicit workflow command; status is never
+        client-writable in Phase 1.
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - reference
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$
+          description: Trim outer whitespace before validation; store uppercase. Globally
+            unique, including archived projects. ASCII operational reference; no internal
+            spaces.
+        exporterId:
+          type: string
+          format: uuid
+          nullable: true
+        producerIds:
+          type: array
+          items: &id007
+            type: string
+            format: uuid
+          uniqueItems: true
+          maxItems: 100
+          default: []
+        consigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        notifyPartyId:
+          type: string
+          format: uuid
+          nullable: true
+        freightForwarderId:
+          type: string
+          format: uuid
+          nullable: true
+        shippingLineId:
+          type: string
+          format: uuid
+          nullable: true
+        destinationCountryCode:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2, uppercase. Format validated now; code-set
+            validation at service boundary.
+        portOfLoadingId:
+          type: string
+          format: uuid
+          nullable: true
+        portOfDischargeId:
+          type: string
+          format: uuid
+          nullable: true
+        expectedDepartureDate:
+          type: string
+          format: date
+          nullable: true
+          description: Estimated local departure date; historical dates permitted.
+            No actual-departure ordering rule.
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          format: int64
+          minimum: 0
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$
+          description: Trim outer whitespace before validation; store uppercase. Globally
+            unique, including archived projects. ASCII operational reference; no internal
+            spaces.
+        exporterId:
+          type: string
+          format: uuid
+          nullable: true
+        producerIds:
+          type: array
+          items: *id007
+          uniqueItems: true
+          maxItems: 100
+        consigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        notifyPartyId:
+          type: string
+          format: uuid
+          nullable: true
+        freightForwarderId:
+          type: string
+          format: uuid
+          nullable: true
+        shippingLineId:
+          type: string
+          format: uuid
+          nullable: true
+        destinationCountryCode:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2, uppercase. Format validated now; code-set
+            validation at service boundary.
+        portOfLoadingId:
+          type: string
+          format: uuid
+          nullable: true
+        portOfDischargeId:
+          type: string
+          format: uuid
+          nullable: true
+        expectedDepartureDate:
+          type: string
+          format: date
+          nullable: true
+          description: Estimated local departure date; historical dates permitted.
+            No actual-departure ordering rule.
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+      description: 'Partial update: omitted means unchanged; explicit null clears
+        a nullable field. reference and producerIds cannot be null. producerIds replaces
+        the entire set; [] clears it. Version-only request is a no-op (no revision/audit
+        change). Atomic compare-and-swap; stale expectedVersion returns 409. Status
+        is not writable.'
+    ProjectResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - status
+      - createdAt
+      - updatedAt
+      - reference
+      - exporterId
+      - producerIds
+      - consigneeId
+      - notifyPartyId
+      - freightForwarderId
+      - shippingLineId
+      - destinationCountryCode
+      - portOfLoadingId
+      - portOfDischargeId
+      - expectedDepartureDate
+      - notes
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$
+          description: Trim outer whitespace before validation; store uppercase. Globally
+            unique, including archived projects. ASCII operational reference; no internal
+            spaces.
+        exporterId:
+          type: string
+          format: uuid
+          nullable: true
+        producerIds:
+          type: array
+          items: *id007
+          uniqueItems: true
+          maxItems: 100
+        consigneeId:
+          type: string
+          format: uuid
+          nullable: true
+        notifyPartyId:
+          type: string
+          format: uuid
+          nullable: true
+        freightForwarderId:
+          type: string
+          format: uuid
+          nullable: true
+        shippingLineId:
+          type: string
+          format: uuid
+          nullable: true
+        destinationCountryCode:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2, uppercase. Format validated now; code-set
+            validation at service boundary.
+        portOfLoadingId:
+          type: string
+          format: uuid
+          nullable: true
+        portOfDischargeId:
+          type: string
+          format: uuid
+          nullable: true
+        expectedDepartureDate:
+          type: string
+          format: date
+          nullable: true
+          description: Estimated local departure date; historical dates permitted.
+            No actual-departure ordering rule.
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProjectPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResponse'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    Problem:
+      type: object
+      required:
+      - type
+      - title
+      - status
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+            - field
+            - code
+            - message
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string

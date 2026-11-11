@@ -17,8 +17,33 @@
 9. Which document inputs also need generated PDF output (invoice/packing list)?
 10. Confirm deadline business/calendars for early draft invoice.
 
+## Backend Project API verification — BLOCKED (2026-11-11)
+
+Agent 1 supplied the frozen contract and migration; Agent 2 implemented the four
+Project endpoints on `feat/backend-projects`. Maven Central DNS resolution fails
+and Docker socket access is denied, so compilation and PostgreSQL integration
+tests cannot be verified here. Supply a Java 21/Maven environment with repository
+and Docker access, then run `cd backend && ./mvnw verify` before acceptance.
+The implementation report is `backend/PROJECT-IMPLEMENTATION-HANDOFF.md`.
+No completion box has been checked.
+
+## Local accounts and form editing verification — BLOCKED (2026-11-12)
+
+The owner-confirmed account/form access contract and V2 migration are available.
+Agent 2 implemented the follow-up on `feat/backend-local-accounts`; see
+`backend/ACCOUNTS-IMPLEMENTATION-HANDOFF.md`. Runtime acceptance still requires
+Maven repository/DNS access, Docker permissions and Java 21. The prepared local
+session/CSRF/account/assignment integration suite has not compiled or run here.
+
 # Newly confirmed 2026-11-11
 - Catch input is **pre-processing**, around 22,000 kg in the sample; exported finished net is around 19,200 kg, separated into three box-size categories. Do not equate raw catch mass to finished export mass.
 - Shipping List is separate from Packing List; dossier pages 16, 17, 22 show vessel catch quantity/date information and vessel/lot recap, attached among HC documents.
 - Signing-ready PDFs must be clean and free of *every* signature or stamp image; blank areas only. Client previews should indicate all relevant signature locations and remain unambiguously NON-OFFICIAL.
 - Still open: exact box-size grades/weight allocations; meaning of each vessel date/delay column; raw-material loss categories; approval to use specific signatory illustrations.
+
+## Accounts and assignments — resolved by owner
+
+- Own application accounts; ADMIN creates/manages accounts. No self-registration or existing external login provider.
+- ADMIN assigns operators to shipment projects and specific forms.
+- Operators may read every form of an assigned shipment and edit only explicitly assigned forms.
+- Updated schema/target contracts: architecture/ACCESS-MODEL.md, contracts/accounts-access-v1.yaml, contracts/projects-v2.yaml. Local-account and permission enforcement remain pending Agent 2 implementation and runtime verification.

@@ -1,0 +1,31 @@
+# Decisions and unresolved requirements — 2026-11-11
+
+This is an additive architecture decision record. Existing shared plans and playbooks were preserved. The user's current instructions and latest owner-confirmed rules take precedence over older contradictory passages.
+
+| Topic | Decision/evidence | Impact |
+|---|---|---|
+| Initial save | Owner answered: **Reference only; allow incomplete drafts**. | Only reference required; all readiness checks are later. |
+| Status name | Backend Agent 2 reports an explicit user requirement for **DRAFT_DATA**; contract uses that value. | Older master plan DRAFT is a terminology conflict, not an extra state; frontend must use the frozen enum. |
+| Shipment identity | Exactly one project = one shipment, confirmed in current prompt/master plan. | Project UUID is shipment UUID; transport is an extension, not another independent shipment table. |
+| Raw vs finished | Latest confirmed processing rules override older field-ownership catch/net-equality language. | Separate catch, allocations, processing output, finished quantities and explicit adjustments. No universal yield. |
+| Shipping List | Owner-confirmed distinct HC annex (sample pages 16/17/22). | Separate document type; never reuse Packing List as an alias. No original customer samples added. |
+| Seal / lock | Distinct identifiers; lock supplied late. | Both nullable for initial draft. Older blanket lock-before-BL rule is deferred until the output-specific requirement is confirmed. |
+| Chronology | ETD is estimated, not actual. | Older production <= shipment <= ETD and unconditional three-day blocker are not enforced. Only event-local known chronology is constrained. |
+| PDF safety | Latest confirmed rules: completely blank signature/stamp spaces on every signing-ready page; conspicuously invalid illustrative preview. | Metadata separates variants. Renderer and authorization are future work. |
+| Output scope | Five confirmed output families only. | Older G6/G7/playbooks that imply mandatory invoice/PL/PS PDFs are not current acceptance scope. |
+| Internal accounts | Owner confirmed own application accounts, created/managed by ADMIN; no self-registration. | Replaces the previous external-login assumption; see ACCESS-MODEL.md and accounts-access-v1.yaml. |
+| Form permissions | Owner confirmed operators read all forms of assigned shipments but edit only assigned forms. | Project membership grants read access; explicit form assignment grants editing. |
+| Agent ownership | Current user assigns architect schema/bootstrap/contracts and Agent 2 business REST APIs. | Takes precedence over older roster assigning schema to backend and architect to main checkout. Use isolated worktrees. |
+
+## Still open; not guessed
+
+1. Trinity: exact supplier/buyer/consignee/invoice cardinalities. Database has role-qualified multi-party links; API exposes initial setup slots. No invoice uniqueness is fixed.
+2. Catch-to-batch mapping rules and allowed tolerances, other inputs, loss/by-product definitions, exact grade names and date/delay semantics. The initial schema permits explicit allocations and calculates differences; approval/generation remains blocked on these rules.
+3. Lock source and the individual outputs that require it. No draft creation blocker is invented.
+4. Destination countries, approved layouts, external issuers, all signing roles and rights to company illustration assets. PDF templates are not implemented here.
+5. Early invoice deadline calendar/business days and warning vs blocker; invoice/packing PDF generation and Processing Statement/CS meaning.
+6. Organization/port directory CRUD/search implementation remains pending. Account ownership and project/form visibility are resolved in ACCESS-MODEL.md; Agent 2 must implement the updated internal-login and assignment contract.
+7. Scope/uniqueness of external certificate references and whether physical catch lots/certificates can be shared between shipment projects. Initial records are shipment-scoped allocations; no global uniqueness on authority references is imposed. If physical source reuse is required, introduce a shared source ledger before enabling cross-shipment allocation to prevent double consumption.
+8. Document artifact storage, retention and legitimate external-issued originals. Private artifact keys/snapshot metadata are reserved; no public storage, approval claim or import implementation is provided.
+
+Only items needed by later workflows stay blocked; they do not prevent the owner-confirmed reference-only project creation slice. No unresolved rule was converted into a default tolerance, template, signature authorization, fixed sample grade or mandatory draft field.
