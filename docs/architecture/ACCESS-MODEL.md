@@ -1,5 +1,7 @@
 # Owner-confirmed accounts and form assignments
 
+**Verification update:** the integrated backend passes all 94 Maven tests, including real PostgreSQL account/CSRF/assignment integration tests. First-admin bootstrap, browser/frontend integration and deployment remain separate pending checks. Earlier unverified notes below describe the historical review stages. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`.
+
 The owner confirmed: the platform has its own accounts; an administrator creates/manages users and assigns operators to shipment projects and particular forms. An assigned operator can read every form in that shipment and edit only assigned forms. A project remains exactly one shipment.
 
 ## Permission rules
@@ -61,3 +63,5 @@ Focused follow-up source inspection confirmed all review corrections: active-sta
 Agent 2 commits dc058f9 and f78e83e were integrated cleanly as 52f1e3a and 2ec067d. This replaces external JWT configuration with local session login/CSRF, adds admin account management and assignment services, and enforces ADMIN-only project creation and PROJECT_SETUP-gated operator updates. The previously noted static-review findings are corrected. See `../../backend/ACCOUNTS-IMPLEMENTATION-HANDOFF.md` for exact endpoints, first-admin bootstrap and frontend instructions. Other business-form content endpoints remain future work; their grants exist but no additional forms are claimed implemented. V1/V2 and frontend contents were preserved during integration. Runtime acceptance remains open.
 
 Compilation follow-up: all integrated main/test sources now compile for Java 21; 17 compiled unit tests and 13 contract checks pass. The account HTTP/CSRF/assignment and PostgreSQL integration suites still have not executed. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`; earlier uncompiled statements here describe the initial review stage.
+
+Final backend verification: the host Maven verify run passed with 17 unit and 77 PostgreSQL integration tests, no failures/errors/skips, and V1/V2 applied successfully. Saved reports were independently inspected. Source corrections described above are now covered by the passing backend suite, including 14 AccountApiIT cases. This supersedes earlier backend-runtime-blocked notes; no browser/UI, actual one-time bootstrap or deployment result is implied.

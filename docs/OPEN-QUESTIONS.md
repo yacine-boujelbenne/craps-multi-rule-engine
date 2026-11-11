@@ -47,3 +47,7 @@ session/CSRF/account/assignment integration suite has not compiled or run here.
 - ADMIN assigns operators to shipment projects and specific forms.
 - Operators may read every form of an assigned shipment and edit only explicitly assigned forms.
 - Updated schema/target contracts: architecture/ACCESS-MODEL.md, contracts/accounts-access-v1.yaml, contracts/projects-v2.yaml. Local-account and permission enforcement remain pending Agent 2 implementation and runtime verification.
+
+## Backend verification — resolved on host, 2026-11-12
+
+The owner's full Maven verify run passed on the integrated architecture worktree: 17 unit tests + 77 real PostgreSQL integration tests, zero failures/errors/skips. V1/V2 migrated and the runnable JAR was packaged. Saved XML reports and migration/startup logs were independently inspected. Earlier DNS/Docker/cache blockers above are historical for backend acceptance; sandbox restrictions still apply to agent commands. Frontend/browser integration, actual first-admin bootstrap, a persistent local development database and deployment remain separate pending checks. See `../backend/VERIFICATION-RECHECK-2026-11-12.md`.

@@ -1,6 +1,6 @@
 # Phase 1 architecture foundations
 
-This branch now combines the architect's database/bootstrap with Agent 2's Project REST and internal-account/assignment implementations. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions remain outside this delivery; internal account/session authentication is included in source. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Runtime acceptance remains open.
+This branch now combines the architect's database/bootstrap with Agent 2's Project REST and internal-account/assignment implementations. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions remain outside this delivery; internal account/session authentication is included in source. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Backend Maven verification now passes: 94 tests with zero failures/errors/skips. Frontend/browser integration, first-admin bootstrap and deployment remain separate checks.
 
 ## Layout and decisions
 
@@ -25,7 +25,7 @@ The project row is the shipment identity. `shipment_transport` is an optional da
 
 UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mass or financial values. Catch original quantity/unit can be preserved together, but normalization must be verified by the service; no implicit conversion factor is invented. Events use timestamptz, shipment/production dates use date. No price, currency, invoice or packing-line model is prematurely fixed in this slice.
 
-Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. Compilation for Java 21, generated mappings and 17 unit tests are verified; standard Maven verify and PostgreSQL/runtime checks remain blocked. See VALIDATION.md and `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Review support/security patch policy before production deployment.
+Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. The host Maven verify run passed: compilation for Java 21, generated mappings, packaging, 17 unit tests and 77 real PostgreSQL integration tests are verified. See VALIDATION.md and `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Review support/security patch policy before production deployment.
 
 ## The 26 tables and why they exist
 

@@ -1,6 +1,6 @@
 # Phase 1 validation and delivery — 2026-11-11
 
-**Compilation and 17 unit tests are now verified; PostgreSQL/runtime acceptance remains open.** All 37 main and 7 test sources compile for Java 21, including MapStruct generation. PostgreSQL startup, migration execution, application startup, HTTP session/CSRF behavior and integration tests remain unverified. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md` for the latest evidence; older failed/uncompiled entries below are historical. No playbook completion boxes were changed.
+**Backend verification passed on the host: 94 tests, zero failures/errors/skips.** Independently inspected the saved Surefire XML (17 unit tests), Failsafe XML/summary (77 PostgreSQL integration tests), Flyway V1/V2 application logs and packaged Spring Boot JAR. The host Maven run finished BUILD SUCCESS on 2026-11-12 at 00:48:37+01:00. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Earlier sandbox failures below are historical; frontend/browser acceptance, first-admin bootstrap and deployment are still separate pending checks. No playbook completion boxes were changed.
 
 ## Environment and executed checks
 
@@ -112,3 +112,11 @@ On the combined tree, 13 offline contract checks, Compose/configuration parsing 
 Imported Agent 2 verification report 25e8579 after inspecting its commands and the integrated worktree's generated MapStruct sources/main and test class files. Confirmed Java 21.0.13.0.3 and Maven 3.9.12 are now on PATH. The recheck was run against unchanged integrated c446e58: all 37 main and 7 test sources compile with release 21; 17 compiled JUnit tests passed on Java 21 (9 parser, 5 actor, 3 password-policy tests), using the cached Jupiter engine directly. The 13 offline contract checks also pass. No source changes were needed.
 
 This supersedes earlier uncompiled/Java-21-unavailable statements. Standard Maven verify remains blocked by incomplete Surefire/jar-plugin metadata and DNS; Docker socket access remains denied. The installed Java 21 is a runtime without javac, so compilation used the bundled IntelliJ compiler with --release 21. No PostgreSQL/Flyway/HTTP integration acceptance is claimed. Exact command and temporary-runner location are preserved in `../../backend/VERIFICATION-RECHECK-2026-11-12.md`.
+
+## Backend runtime verification passed — 2026-11-12
+
+Imported Agent 2 report f9b95fa. Independently parsed all seven saved TEST-*.xml suites in the integrated worktree: Surefire 17 tests and Failsafe 77 tests, each with zero failures/errors/skips. Failsafe summary also records zero flakes. Counts are PasswordPolicyTest 3, ProjectRequestParserTest 9, ProjectActorTest 5, AccountApiIT 14, AccountAssignmentsIT 6, FoundationsIT 16 and ProjectApiIT 41.
+
+Saved integration output confirms real PostgreSQL 16.15 containers started, Flyway validated/applied both V1 and V2, and Spring Boot/MockMvc initialized. `backend/target/exportdocs-backend-0.1.0-SNAPSHOT.jar` exists. The owner ran the complete Maven verify command from the normal host terminal with the configured compiler; this supersedes earlier incomplete-plugin/DNS/Docker-blocked backend acceptance status. Sandbox tools remaining restricted do not negate the verified host result. No source changes or redundant test reruns were needed.
+
+Current acceptance: backend schema, migrations, application initialization, project/auth/permission endpoints through real PostgreSQL/MockMvc, compile/package and all 94 backend tests passed. The separate 13 offline contract checks also passed previously. Local Compose configuration is validated; a configured long-running Compose development database, one-time administrator bootstrap, frontend/browser journey and deployment are not established by this test run and remain separately pending. Unresolved later commercial/processing/document business decisions remain recorded in DECISIONS.md.

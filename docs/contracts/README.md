@@ -1,8 +1,8 @@
 # Phase 1 contracts
 
-**Access update:** the owner now requires internal admin-managed accounts and per-form editing. `projects-v2.yaml` and `accounts-access-v1.yaml` are the stable target contracts for that change; Agent 2's implementation is integrated in source; full runtime verification remains open. See `../architecture/ACCESS-MODEL.md`. The existing v1 artifact is preserved for compatibility/history.
+**Access update:** the owner now requires internal admin-managed accounts and per-form editing. `projects-v2.yaml` and `accounts-access-v1.yaml` are the stable target contracts for that change; Agent 2's implementation is integrated in source; the host Maven verify run passed all 94 backend tests; frontend/browser acceptance remains separate. See `../architecture/ACCESS-MODEL.md`. The existing v1 artifact is preserved for compatibility/history.
 
-`projects-v1.yaml` is the previous OpenAPI 3.0.3 input for Agent 2 and Angular client generation. Agent 2's implementation of these endpoints is integrated on feat/architecture-phase1; its source and tests have been reviewed but full build/runtime verification remains blocked. Reference-only creation was confirmed by the owner on 2026-11-11. Initial status is `DRAFT_DATA`, aligning with Agent 2's explicit assignment; this replaces the older plan's `DRAFT` spelling. The other status names follow the master plan. Status transitions are deferred.
+`projects-v1.yaml` is the previous OpenAPI 3.0.3 input for Agent 2 and Angular client generation. Agent 2's implementation of these endpoints is integrated on feat/architecture-phase1; its source and tests have been reviewed but the host Maven verify run passed all 94 backend tests; frontend/browser acceptance remains separate. Reference-only creation was confirmed by the owner on 2026-11-11. Initial status is `DRAFT_DATA`, aligning with Agent 2's explicit assignment; this replaces the older plan's `DRAFT` spelling. The other status names follow the master plan. Status transitions are deferred.
 
 ## Integration ownership
 
