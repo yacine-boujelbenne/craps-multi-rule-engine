@@ -1,5 +1,9 @@
 # Project API implementation and integration report
 
+Historical initial delivery. On `feat/backend-local-accounts`, authentication and
+permissions are superseded by [the local-account follow-up](ACCOUNTS-IMPLEMENTATION-HANDOFF.md)
+and `docs/contracts/projects-v2.yaml`. The original branch remains preserved.
+
 Branch: `feat/backend-projects`. Worktree: `/run/media/yacine/yassine/DMS/backend-projects`.
 Implementation is ready for integration review; **build and PostgreSQL acceptance
 remain blocked by the environment**. No completion checkbox is marked.

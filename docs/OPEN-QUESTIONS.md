@@ -27,6 +27,14 @@ and Docker access, then run `cd backend && ./mvnw verify` before acceptance.
 The implementation report is `backend/PROJECT-IMPLEMENTATION-HANDOFF.md`.
 No completion box has been checked.
 
+## Local accounts and form editing verification — BLOCKED (2026-11-12)
+
+The owner-confirmed account/form access contract and V2 migration are available.
+Agent 2 implemented the follow-up on `feat/backend-local-accounts`; see
+`backend/ACCOUNTS-IMPLEMENTATION-HANDOFF.md`. Runtime acceptance still requires
+Maven repository/DNS access, Docker permissions and Java 21. The prepared local
+session/CSRF/account/assignment integration suite has not compiled or run here.
+
 # Newly confirmed 2026-11-11
 - Catch input is **pre-processing**, around 22,000 kg in the sample; exported finished net is around 19,200 kg, separated into three box-size categories. Do not equate raw catch mass to finished export mass.
 - Shipping List is separate from Packing List; dossier pages 16, 17, 22 show vessel catch quantity/date information and vessel/lot recap, attached among HC documents.
