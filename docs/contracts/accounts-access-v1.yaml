@@ -96,7 +96,7 @@ paths:
   /api/auth/password:
     post:
       operationId: changeOwnPassword
-      summary: Change password and invalidate sessions; login again
+      summary: Replace with a different password and invalidate sessions; login again
       responses:
         '204':
           description: Password changed; current session invalidated.
