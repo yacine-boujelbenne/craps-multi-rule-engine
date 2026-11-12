@@ -150,8 +150,12 @@ Run the following on a host with working Docker before accepting this slice:
 
 ```bash
 cd /run/media/yacine/yassine/DMS/architecture-foundations/backend
-./mvnw -Dmaven.compiler.fork=true \
-  -Dmaven.compiler.executable=/snap/intellij-idea/154/jbr/bin/javac verify
+./verify.sh
 ```
 
 On a normal JDK 21 installation, `./mvnw verify` is sufficient. Expected inventory: 50 unit + 77 existing PostgreSQL + 12 V3 schema + 32 new API invocations = 171 tests, with zero failures/errors/skips required. First run the read-only V3 preflight before migrating an existing populated database. Local Compose startup/readiness, administrator bootstrap and frontend/browser checks remain separate checks. No PostgreSQL startup or V3 success is inferred from compilation.
+
+
+## Host verification helper integrated — 2026-11-12
+
+Integrated Backend Agent 2 commit 3d4ea5d as 636c0f6: backend/verify.sh and backend/VERIFYING.md. The helper checks Docker access, selects an existing Java compiler and execs the full Maven verify command without adding test-skip options. Shell syntax passes. An actual sandbox invocation fails before Maven with an explicit Docker-unavailable error (exit 1); host success remains unclaimed. The helper changes no application sources, migrations, dependencies or frontend files.
