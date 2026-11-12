@@ -130,3 +130,9 @@ Added commercial-setup-v1.yaml, architect-owned V3 migration, CommercialSetupSch
 Passed: 17 offline contract checks (13 existing + 4 commercial cases), local OpenAPI reference resolution (84 references before the final response-header additions; all referenced components resolved), YAML parse and git diff --check. Maven offline test-compile passed with release 21, compiling all 8 test sources including the 12 parameterized/schema cases in CommercialSetupSchemaIT. Command: `./mvnw -o -Dmaven.repo.local=/tmp/dms-backend-recheck-maven -Dmaven.compiler.fork=true -Dmaven.compiler.executable=/snap/intellij-idea/154/jbr/bin/javac test-compile` from backend.
 
 Blocked: `docker info --format '{{.ServerVersion}}'` still returns socket permission denied here. V3 migration execution and the new schema tests have not run. Reuse the host verification route after Agent 2 implements the published commercial API; do not reinterpret the historical 94-test success as V3 acceptance. Compile success is not migration/service correctness.
+
+## Commercial implementation dispatch and client schema check
+
+Owner authorized starting slice 1. Dedicated backend-role implementation is active in `/run/media/yacine/yassine/DMS/commercial-backend`, branch feat/backend-commercial-setup, based on d2dd11a. Previous backend branch and OpenCode frontend checkout are preserved. The parent added a read-only V3 duplicate-cardinality preflight; no database execution is claimed for that script.
+
+The new commercial contract generated standalone TypeScript definitions successfully with cached openapi-typescript 7.13.0: `/home/yacine/.npm/_npx/21d31b7563e6adbc/node_modules/.bin/openapi-typescript docs/contracts/commercial-setup-v1.yaml -o /tmp/exportdocs-commercial-schema.d.ts`. This checked local/external schema references without changing frontend files or installing dependencies. Backend business implementation/review and new runtime verification are still in progress.

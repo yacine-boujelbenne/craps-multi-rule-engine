@@ -1,7 +1,7 @@
 -- Read-only diagnostics before V3 on an existing V1/V2 database.
 -- No rows means these known duplicate-cardinality conflicts were not found.
 -- V3 still enforces the constraints if data changes after this check.
-BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY;
 
 SELECT 'commercial_party' AS conflict_kind,
        project_id,
