@@ -58,6 +58,8 @@ public class ProjectService {
         if (!details.visible(id, actor)) throw ProjectProblem.notFound();
         // Serialize child-row replacements before checking the client's version.
         var project = projects.findForUpdate(id).orElseThrow(ProjectProblem::notFound);
+        actor = authorize(true);
+        if (!details.visible(id, actor)) throw ProjectProblem.notFound();
         if(!details.canEditSetup(id,actor)) throw new ProjectProblem(403,"Project setup edit assignment required.",List.of());
         if (!project.getVersion().equals(request.expectedVersion())) {
             throw ProjectProblem.field(409, "expectedVersion", "stale_version", "Project changed; reload it before updating.");

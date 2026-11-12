@@ -1,5 +1,6 @@
 package com.exportdocs.project.infrastructure;
 
+import com.exportdocs.party.infrastructure.OrganizationSelectionStore;
 import com.exportdocs.project.application.ProjectActor;
 import com.exportdocs.project.application.ProjectFields;
 import com.exportdocs.project.application.ProjectProblem;
@@ -17,11 +18,15 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ProjectDetailsStore {
     private final JdbcTemplate jdbc;
+    private final OrganizationSelectionStore selections;
     private static final Map<String, String> PARTY_FIELDS = Map.of(
             "exporterId", "EXPORTER", "producerIds", "PRODUCER", "consigneeId", "CONSIGNEE",
             "notifyPartyId", "NOTIFY_PARTY", "freightForwarderId", "FREIGHT_FORWARDER", "shippingLineId", "SHIPPING_LINE");
 
-    public ProjectDetailsStore(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public ProjectDetailsStore(JdbcTemplate jdbc, OrganizationSelectionStore selections) {
+        this.jdbc = jdbc;
+        this.selections = selections;
+    }
 
     public void auditContext(UUID actor) {
         jdbc.queryForObject("SELECT set_config('app.actor_id', ?, true)", String.class, actor.toString());
@@ -42,18 +47,11 @@ public class ProjectDetailsStore {
     }
 
     public void validate(ProjectFields fields, Set<String> supplied) {
-        var errors = new ArrayList<ProjectProblem.FieldError>();
-        for (var entry : partyValues(fields).entrySet()) {
-            if (!supplied.contains(entry.getKey())) continue;
-            for (UUID id : entry.getValue()) {
-                boolean valid = Boolean.TRUE.equals(jdbc.queryForObject("""
-                        SELECT EXISTS (SELECT 1 FROM organization o JOIN organization_role r ON r.organization_id=o.id
-                        WHERE o.id=? AND o.active AND r.role=?)
-                        """, Boolean.class, id, PARTY_FIELDS.get(entry.getKey())));
-                if (!valid) errors.add(new ProjectProblem.FieldError(entry.getKey(), "invalid_reference",
-                        "Company must exist, be active and have the required party role."));
-            }
-        }
+        Map<String, List<UUID>> requested = new HashMap<>();
+        partyValues(fields).forEach((field, ids) -> {
+            if (supplied.contains(field)) requested.put(field, ids);
+        });
+        var errors = new ArrayList<>(selections.validate(requested, PARTY_FIELDS));
         Map<String, UUID> ports = new HashMap<>();
         ports.put("portOfLoadingId", fields.portOfLoadingId());
         ports.put("portOfDischargeId", fields.portOfDischargeId());
