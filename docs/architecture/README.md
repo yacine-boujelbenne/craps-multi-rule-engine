@@ -1,6 +1,6 @@
 # Phase 1 architecture foundations
 
-This branch now combines the architect's database/bootstrap with Agent 2's Project REST and internal-account/assignment implementations. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions remain outside this delivery; internal account/session authentication is included in source. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Runtime acceptance remains open.
+This branch combines the database/bootstrap, Project REST, internal accounts/form assignments and commercial setup slice 1. One project **is** one shipment. Commercial setup adds company roles, supplier/client/importer/consignee selections and ADMIN-controlled product/grade defaults. The V1/V2 baseline passed 94 tests on host PostgreSQL. The new slice compiles/packages and passes 79 unit/MVC plus 18 contract checks. Host V3/schema and 120 of 121 PostgreSQL cases pass. Strict UUID HTTP binding addresses the remaining malformed-ID failure and awaits a final host rerun. See ../WORKSPACE.md for the single checkout location. See VALIDATION.md and `../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md`. Angular, shipment invoice/packing entry, OCR/imports, PDF generation and workflow transitions remain separate work.
 
 ## Layout and decisions
 
@@ -8,7 +8,10 @@ This branch now combines the architect's database/bootstrap with Agent 2's Proje
 backend/                  Java 21, Spring Boot 3.5.16, Maven
   src/main/java/com/exportdocs/
     ExportDocsApplication.java
-    project/              Agent 2 implementation: api, application, domain, infrastructure
+    project/              project setup, access and commercial parties
+    party/                organization directory and company selection
+    catalog/              product/grade definitions and protected defaults
+    account/              internal accounts, sessions and form assignments
   src/main/resources/
     application.yml
     db/migration/         Flyway is the sole schema owner
@@ -21,11 +24,11 @@ infra/                    local run helpers; root Compose is canonical
 
 Use one modular monolith, one relational database and synchronous transactions. Within growing modules, use `api -> application -> domain` and infrastructure adapters; controllers call services, not repositories. Do not add generic service frameworks or separate deployable services. The master plan's module-first layout takes precedence over the older top-level layer list in AGENTS.md; shared bootstrap lives under infrastructure. DTO mappings use MapStruct, as AGENTS.md requests.
 
-The project row is the shipment identity. `shipment_transport` is an optional data extension whose PK is the project UUID; it cannot represent a second shipment. Agent 2 creates that row even if all transport fields are initially null. Directory organizations have multiple roles; project links select those roles. This permits several producers/suppliers without deciding the unresolved Trinity/invoice model. Phase 1's singular exporter/consignee API slots are a form projection, not an assertion about every later workflow.
+The project row is the shipment identity. `shipment_transport` is an optional data extension whose PK is the project UUID; it cannot represent a second shipment. Agent 2 creates that row even if all transport fields are initially null. Directory organizations have multiple roles; project links select those roles. Legacy producer arrays remain supported. The new commercial setup permits one supplier, client, importer and consignee per completed shipment; drafts may omit them. Trinity is only a tag. The supplier invoice is billed to the consignee; invoice persistence follows in slice 2.
 
-UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mass or financial values. Catch original quantity/unit can be preserved together, but normalization must be verified by the service; no implicit conversion factor is invented. Events use timestamptz, shipment/production dates use date. No price, currency, invoice or packing-line model is prematurely fixed in this slice.
+UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mass or financial values. Catch original quantity/unit can be preserved together, but normalization must be verified by the service; no implicit conversion factor is invented. Events use timestamptz, shipment/production dates use date. V3 adds nullable ADMIN-controlled carton net-weight and price/currency defaults to grades. Shipment invoice/packing records and immutable applied-default snapshots follow in slice 2.
 
-Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. Dependency download/build is unverified in this restricted environment; see VALIDATION.md. Review support/security patch policy before production deployment.
+Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. The historical V1/V2 host Maven verify run passed: compilation for Java 21, generated mappings, packaging, 17 unit tests and 77 real PostgreSQL integration tests were verified. New commercial acceptance is tracked separately above. See VALIDATION.md and `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Review support/security patch policy before production deployment.
 
 ## The 26 tables and why they exist
 
@@ -79,7 +82,7 @@ Views calculate totals without storing duplicate totals:
 - `processing_batch_balance`: allocated input raw kg, finished net kg, accounted other outputs, unaccounted difference and yield percent. Each relation is independently aggregated to avoid multiplying sums across joins.
 - `document_version_freshness`: compares snapshot source_revision to current project.version. Stale is derived; historical document rows never mutate. It conservatively invalidates all versions on a project change until field-level impact analysis exists.
 
-The fictional test uses 22,000 input -> 19,200 finished + 2,800 other accounted output (87.2727% yield). It is a mathematical fixture, **not a default recipe, tolerance, loss classification or equality rule**. Incomplete batches may be unbalanced while entering data. A final reconciliation/generation gate requires the owner's actual allowed adjustment/tolerance rules; the schema does not silently approve an unbalanced batch. Full invoice and packing allocations come in their own subsequent migrations.
+The fictional test uses 22,000 input -> 19,200 finished + 2,800 other accounted output (87.2727% yield). It is a mathematical fixture, **not a default recipe, tolerance, loss classification or equality rule**. Incomplete batches may be unbalanced while entering data. The owner subsequently confirmed that no loss/by-product or yield-reconciliation gate is required for this workflow; see QUANTITY-MODEL.md. Keep entered measurements coherent without making the illustrative balance a mandatory task. Full invoice and packing allocations come in their own subsequent migrations.
 
 ## Document consistency
 
@@ -94,7 +97,7 @@ The fictional test uses 22,000 input -> 19,200 finished + 2,800 other accounted 
 | shipment_transport | Shipping vessel (distinct from fishing vessel), voyage, ports, carrier BL reference | Draft BL, HC/CO as needed |
 | document_version | Pinned template, source revision, immutable JSON facts/hash | Historical previews/downloads and review records |
 
-`document_type` seeds only HC, BL_DRAFT, CC, CO and SHIPPING_LIST. Shipping List has its own logical document and version; parent_document_id can attach it to an HC instance in the same project. The renderer/service must validate that the relationship is Shipping List -> HC; this semantic type rule is not claimed as a database constraint. Multiple CC logical keys are permitted. Packing List is not a Shipping List alias and is not seeded as a confirmed generated output.
+`document_type` seeds only HC, BL_DRAFT, CC, CO and SHIPPING_LIST. Shipping List has its own logical document and version; parent_document_id can attach it to an HC instance in the same project. The renderer/service must validate that the relationship is Shipping List -> HC; this semantic type rule is not claimed as a database constraint. V1 permits multiple CC/HC logical keys, but the owner has now confirmed one logical CC and one HC per shipment; narrow this through the next coordinated migration, preserving revision/variant history. See QUANTITY-MODEL.md. Packing List is not a Shipping List alias and is not seeded as a confirmed generated output.
 
 Two variants are supported: UNSIGNED_FOR_SIGNATURE and CLIENT_PREVIEW. Metadata cannot prove the absence of graphics or presence of page watermarks; future rendering tests must verify every page. No generated record represents official external issuance. Authorized external originals/approval records need a later, separate model. Template/version rows reject UPDATE/DELETE; ordinary application roles must not receive TRUNCATE/DDL privileges. Storage keys are private internal references, never public URLs. Artifact bytes/storage and retention are not implemented in Phase 1.
 

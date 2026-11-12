@@ -9,3 +9,6 @@ dist/
 .env
 uploads/
 .maestro/history/
+
+# Local verification evidence and recovered workspace files
+.local/

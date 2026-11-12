@@ -46,3 +46,5 @@ sh -n backend/mvnw
 ```
 
 Full verification status and environment limitations are recorded in `docs/architecture/VALIDATION.md`. Frontend checks belong to its agent; no Angular files are edited by the foundation slice.
+
+Before applying V3 to an existing populated V1/V2 database, run the read-only commercial-cardinality diagnostics in `infra/sql/commercial-v3-preflight.sql`. It reports conflicting party/CC/HC multiplicities without changing business records. Resolve any contradictions explicitly; the migration does not silently choose/delete records. Do not run a production/data-reset workflow to make this check pass.

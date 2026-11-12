@@ -1,5 +1,11 @@
 # Local accounts and assigned form editing
 
+**Verification update:** Full Maven verification now passes on the host: 17 unit
+tests and 77 real PostgreSQL integration tests, with no failures/errors/skips.
+See [the verified run and suite counts](VERIFICATION-RECHECK-2026-11-12.md).
+The initial environment limitations described below are historical; frontend and
+deployment acceptance remain separate.
+
 Branch: `feat/backend-local-accounts`, worktree `/run/media/yacine/yassine/DMS/backend-projects`.
 The original `feat/backend-projects` delivery is preserved. This follow-up implements
 Agent 1's owner-confirmed account/access contract from `e46d6b2` (imported as
