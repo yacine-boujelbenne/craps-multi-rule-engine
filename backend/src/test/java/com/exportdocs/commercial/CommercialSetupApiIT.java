@@ -39,7 +39,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 @SpringBootTest
@@ -567,7 +566,7 @@ class CommercialSetupApiIT {
     }
 
     private MvcResult write(MockHttpServletRequestBuilder request, String input, String subject) throws Exception {
-        return mvc.perform(request.with(account(subject)).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(input)).andReturn();
+        return mvc.perform(CommercialTestRequests.write(request.with(account(subject)), input)).andReturn();
     }
 
     private JsonNode body(MvcResult result) throws Exception {
