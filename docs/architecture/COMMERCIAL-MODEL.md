@@ -20,12 +20,14 @@ Client, importer and consignee **can be different companies**. The organization 
 - Reference-only project creation remains allowed. A saved draft may omit parties and the invoice; the completed commercial workflow requires its one factory invoice. Do not make those facts mandatory merely to create a draft.
 - A factory invoice's later corrections/revisions do not introduce multiple independent invoices for the shipment. Generated document versioning stays separate from commercial invoice identity.
 - The canonical invoice issuer is the shipment supplier/factory; the canonical bill-to party is the shipment consignee. Reuse those project party records, rather than introducing independent bill-to data that can diverge. Client and importer remain separate role selections.
-- The confirmed commercial supplier rule does not determine raw-catch lot reuse, upstream fishing-vessel ownership or processing mass balance. Those traceability questions remain open.
+- Subsequent owner confirmation resolves traceability: no lot/CC sharing between shipments, one CC and one HC per shipment. The current workflow records grade quantities/net/gross and prices without mandatory loss accounting; see QUANTITY-MODEL.md. Fishing-vessel ownership/date semantics remain independent.
 - Existing projects-v2.yaml has consigneeId and producerIds but no dedicated supplierId/clientId/importerId. Existing directory role checks lack CLIENT/IMPORTER. The current API/database do not yet enforce this newly confirmed commercial model. Publish the coordinated next contract and use a new Flyway migration for these confirmed party/billing rules; preserve applied V1/V2 and existing clients.
 - Do not silently map CLIENT to the earlier BUYER role, collapse importer into consignee, or reinterpret existing factory/producer arrays without an explicit contract mapping.
 
 ## Invoice-party clarification resolved
 
 The owner explicitly confirmed that the consignee is billed on the factory's general invoice. The issuer/billed-party relationship is therefore supplier/factory -> consignee. Invoice/Packing List PDF generation is still separately unconfirmed; OCR/imports remain outside this milestone.
+
+Grade, measurement and certificate rules are recorded in QUANTITY-MODEL.md.
 
 This record documents business requirements only. No controllers, schemas or frontend files were changed for this clarification, and the previously passing backend code remains unchanged.
