@@ -1,6 +1,6 @@
 # Phase 1 architecture foundations
 
-This branch combines the database/bootstrap, Project REST, internal accounts/form assignments and commercial setup slice 1. One project **is** one shipment. Commercial setup adds company roles, supplier/client/importer/consignee selections and ADMIN-controlled product/grade defaults. The V1/V2 baseline passed 94 tests on host PostgreSQL. The new slice compiles/packages and passes 50 unit plus 18 contract checks. Host V3/schema and all existing PostgreSQL cases pass; commercial API acceptance awaits a corrected CSRF test fixture and full rerun. See VALIDATION.md and `../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md`. Angular, shipment invoice/packing entry, OCR/imports, PDF generation and workflow transitions remain separate work.
+This branch combines the database/bootstrap, Project REST, internal accounts/form assignments and commercial setup slice 1. One project **is** one shipment. Commercial setup adds company roles, supplier/client/importer/consignee selections and ADMIN-controlled product/grade defaults. The V1/V2 baseline passed 94 tests on host PostgreSQL. The new slice compiles/packages and passes 72 unit/MVC plus 18 contract checks. Host V3/schema and all existing PostgreSQL cases pass; the CSRF test fixture is corrected and commercial API acceptance awaits a full rerun. See VALIDATION.md and `../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md`. Angular, shipment invoice/packing entry, OCR/imports, PDF generation and workflow transitions remain separate work.
 
 ## Layout and decisions
 

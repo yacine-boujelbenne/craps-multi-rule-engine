@@ -1,6 +1,6 @@
 # OpenCode: commercial setup slice 1
 
-Continue Angular work in your isolated frontend branch. Preserve existing local changes and coordinate integration from feat/architecture-phase1; do not reset the frontend checkout. The backend implementation is integrated, compiles/packages and passes 50 unit tests. Host V3/schema and existing PostgreSQL cases now pass. New commercial API acceptance awaits a CSRF test-helper correction and full rerun; contract-driven UI work can proceed now.
+Continue Angular work in your isolated frontend branch. Preserve existing local changes and coordinate integration from feat/architecture-phase1; do not reset the frontend checkout. The backend implementation is integrated, compiles/packages and passes 72 unit/MVC tests. Host V3/schema and existing PostgreSQL cases now pass. The CSRF test helper is corrected; new commercial API acceptance awaits a full rerun; contract-driven UI work can proceed now.
 
 Read AGENTS.md, docs/architecture/ACCESS-MODEL.md, docs/architecture/COMMERCIAL-MODEL.md, docs/architecture/QUANTITY-MODEL.md and docs/contracts/commercial-setup-v1.yaml. Use projects-v2.yaml and accounts-access-v1.yaml for existing project/session behavior. Generate typed clients through the agreed frontend generator; do not hand-invent request shapes. The commercial contract has also generated successfully with openapi-typescript 7.13.0.
 

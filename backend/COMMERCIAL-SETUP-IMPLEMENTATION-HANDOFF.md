@@ -1,5 +1,7 @@
 # Commercial setup slice 1 implementation handoff
 
+Current verification update: host V3 migration and all 12 schema checks passed. The first commercial API run exposed a CSRF fixture defect; its correction is integrated and all 72 unit/MVC tests pass. A full 193-test host rerun remains required. See [COMMERCIAL-CSRF-FIX.md](COMMERCIAL-CSRF-FIX.md). The original implementation record below is historical.
+
 Implementation branch: `feat/backend-commercial-setup` in the isolated `commercial-backend` worktree. Base: `d2dd11a` (architect-owned commercial contract/V3). Implementation is committed and compiles; PostgreSQL acceptance remains pending because the sandbox cannot open the Docker socket.
 
 ## Commits
