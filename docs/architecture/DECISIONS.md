@@ -15,11 +15,13 @@ This is an additive architecture decision record. Existing shared plans and play
 | Output scope | Five confirmed output families only. | Older G6/G7/playbooks that imply mandatory invoice/PL/PS PDFs are not current acceptance scope. |
 | Internal accounts | Owner confirmed own application accounts, created/managed by ADMIN; no self-registration. | Replaces the previous external-login assumption; see ACCESS-MODEL.md and accounts-access-v1.yaml. |
 | Form permissions | Owner confirmed operators read all forms of assigned shipments but edit only assigned forms. | Project membership grants read access; explicit form assignment grants editing. |
+| Commercial parties/invoice | Owner confirmed one supplier/factory, one consignee, one client, one importer and one general factory invoice per shipment. Client/importer/consignee can be different companies. | Keep separate roles; draft omissions still allowed. Invoice recipient remains to be confirmed; see COMMERCIAL-MODEL.md. |
+| Trinity | Owner confirmed it is only a tag. | No special business, access or calculation rules. |
 | Agent ownership | Current user assigns architect schema/bootstrap/contracts and Agent 2 business REST APIs. | Takes precedence over older roster assigning schema to backend and architect to main checkout. Use isolated worktrees. |
 
 ## Still open; not guessed
 
-1. Trinity: exact supplier/buyer/consignee/invoice cardinalities. Database has role-qualified multi-party links; API exposes initial setup slots. No invoice uniqueness is fixed.
+1. Commercial cardinalities and Trinity meaning are resolved in COMMERCIAL-MODEL.md. The factory invoice recipient/billed party remains open; do not infer that client/importer/consignee are identical or map them to billing without confirmation.
 2. Catch-to-batch mapping rules and allowed tolerances, other inputs, loss/by-product definitions, exact grade names and date/delay semantics. The initial schema permits explicit allocations and calculates differences; approval/generation remains blocked on these rules.
 3. Lock source and the individual outputs that require it. No draft creation blocker is invented.
 4. Destination countries, approved layouts, external issuers, all signing roles and rights to company illustration assets. PDF templates are not implemented here.

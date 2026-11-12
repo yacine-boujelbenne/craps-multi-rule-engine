@@ -24,7 +24,7 @@
 | shippingLineId | project_party, role SHIPPING_LINE |
 | portOfLoadingId, portOfDischargeId | shipment_transport.port_of_loading_id/port_of_discharge_id |
 
-All party IDs reference `organization.id`. An organization may have several `organization_role` rows. Match the assigned role against those rows. `project_party` also uses a composite FK to enforce that membership. No company is intrinsically an exclusive exporter or consignee. Singular API slots are a Phase 1 form projection, not a database-wide assumption about the unresolved Trinity model. No invoice cardinality has been fixed.
+All party IDs reference `organization.id`. An organization may have several `organization_role` rows. Match the assigned role against those rows. `project_party` also uses a composite FK to enforce that membership. No company is intrinsically an exclusive exporter or consignee. The owner has now confirmed one supplier/factory, one client, one importer, one consignee and one general factory invoice per completed shipment; client/importer/consignee can differ and Trinity is just a tag. This newly confirmed commercial model is recorded in `../architecture/COMMERCIAL-MODEL.md`; dedicated role fields/cardinality enforcement await a coordinated subsequent contract/migration. The existing v2 shapes are unchanged.
 
 ## Create transaction
 
