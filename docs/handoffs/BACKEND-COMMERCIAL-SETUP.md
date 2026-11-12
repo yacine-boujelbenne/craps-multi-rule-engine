@@ -29,7 +29,7 @@ Agent 2 owns services/controllers/DTOs/adapters/tests under com.exportdocs.party
 
 A company can support several roles. The same organization ID can appear in several shipment slots if it has those roles; do not require either equality or distinctness. At most one company per each of the four commercial roles per project. All four may be absent on an incomplete draft. No default supplier or hidden migration from producerIds is inferred.
 
-V3 adds no tables. It versions organizations/products/grades, adds grade defaults/display order and new role checks, narrows CC/HC logical cardinality, and makes finished_product_quantity.processing_batch_id optional. Existing generic audit triggers already cover organization/roles/product/grade/project-party mutations. Failed uniqueness/cardinality migration must stop rather than deduplicate business data. A diagnostic preflight should inspect duplicate (project_id,role) for the four roles, duplicate catch_certificate.project_id, and duplicate (project_id,document_type_code) for HC/CC before deploying to an existing populated database.
+V3 adds no tables. It versions organizations/products/grades, adds grade defaults/display order and new role checks, narrows CC/HC logical cardinality, and makes finished_product_quantity.processing_batch_id optional. Existing generic audit triggers already cover organization/roles/product/grade/project-party mutations. Failed uniqueness/cardinality migration must stop rather than deduplicate business data. The read-only `infra/sql/commercial-v3-preflight.sql` checks duplicate (project_id,role) for the four roles, duplicate catch_certificate.project_id, and duplicate (project_id,document_type_code) for HC/CC before deploying to an existing populated database. Run it against the actual V1/V2 database; resolve reported contradictions with the operator before migration. An empty result is diagnostic, not a substitute for V3 enforcement.
 
 ## Permissions
 
@@ -78,3 +78,7 @@ One invoice per project, seller from SUPPLIER, bill-to from CONSIGNEE. Snapshot 
 ## Architect verification before publication
 
 17 offline contract checks passed, OpenAPI local references resolved, and all test sources compile for Java 21 (including 12 new CommercialSetupSchemaIT cases). Docker socket access is still denied in the agent sandbox, so V3 and the new PostgreSQL tests are NOT yet executed. The historical 94-test backend baseline applies to V1/V2. Require a new complete host Maven verify for this slice before acceptance. The restarted tool environment no longer exposes the previous cross-thread message tool; this committed handoff is the delivery artifact, not a claim of a successfully sent agent message.
+
+## Implementation started — 2026-11-12
+
+After the owner said “start then,” the old backend branch was preserved and `feat/backend-commercial-setup` was prepared from d2dd11a in `/run/media/yacine/yassine/DMS/commercial-backend`. The existing cross-thread/CLI resume path was unavailable/read-only, so a dedicated backend-role worker was started in this isolated worktree. It is implementing slice 1 acceptance tests/services/controllers; the architect remains responsible for review and integration. OpenCode's frontend worktree is separate and untouched. This note records dispatch, not feature completion.
