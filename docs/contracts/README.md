@@ -1,6 +1,6 @@
 # Shared API contracts
 
-**Next commercial slice:** `commercial-setup-v1.yaml` adds organization/product/grade directories and `/api/projects/{id}/commercial-parties` without changing Project v2 JSON. V3 supplies the supporting schema and confirmed single-CC/HC rules. Business endpoint implementation is pending Agent 2; see `../handoffs/BACKEND-COMMERCIAL-SETUP.md`. The subsequent invoice/packing snapshot contract is a separate slice.
+**Commercial setup slice 1:** `commercial-setup-v1.yaml` adds organization/product/grade directories and `/api/projects/{id}/commercial-parties` without changing Project v2 JSON. V3 supplies the supporting schema and confirmed single-CC/HC rules. Business endpoint implementation is integrated on feat/architecture-phase1; 50 unit and 18 contract checks pass, while new PostgreSQL/V3 acceptance is pending host Docker verification. See `../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md` and `../handoffs/FRONTEND-COMMERCIAL-SETUP.md`. The subsequent invoice/packing snapshot contract is a separate slice.
 
 **Access update:** the owner now requires internal admin-managed accounts and per-form editing. `projects-v2.yaml` and `accounts-access-v1.yaml` are the stable target contracts for that change; Agent 2's implementation is integrated in source; the host Maven verify run passed all 94 backend tests; frontend/browser acceptance remains separate. See `../architecture/ACCESS-MODEL.md`. The existing v1 artifact is preserved for compatibility/history.
 
@@ -26,7 +26,7 @@
 | shippingLineId | project_party, role SHIPPING_LINE |
 | portOfLoadingId, portOfDischargeId | shipment_transport.port_of_loading_id/port_of_discharge_id |
 
-All party IDs reference `organization.id`. An organization may have several `organization_role` rows. Match the assigned role against those rows. `project_party` also uses a composite FK to enforce that membership. No company is intrinsically an exclusive exporter or consignee. The owner has now confirmed one supplier/factory, one client, one importer, one consignee and one general factory invoice per completed shipment; client/importer/consignee can differ and Trinity is just a tag. This newly confirmed commercial model is recorded in `../architecture/COMMERCIAL-MODEL.md`; dedicated role fields/cardinality enforcement await a coordinated subsequent contract/migration. The existing v2 shapes are unchanged.
+All party IDs reference `organization.id`. An organization may have several `organization_role` rows. Match the assigned role against those rows. `project_party` also uses a composite FK to enforce that membership. No company is intrinsically an exclusive exporter or consignee. The owner has now confirmed one supplier/factory, one client, one importer, one consignee and one general factory invoice per completed shipment; client/importer/consignee can differ and Trinity is just a tag. This newly confirmed commercial model is recorded in `../architecture/COMMERCIAL-MODEL.md`; the dedicated role fields are exposed by commercial-setup-v1.yaml and V3 defines the cardinality constraints; its database execution remains pending. The existing v2 shapes are unchanged.
 
 ## Create transaction
 

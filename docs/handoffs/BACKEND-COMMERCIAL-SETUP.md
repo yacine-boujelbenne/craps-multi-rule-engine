@@ -82,3 +82,10 @@ One invoice per project, seller from SUPPLIER, bill-to from CONSIGNEE. Snapshot 
 ## Implementation started — 2026-11-12
 
 After the owner said “start then,” the old backend branch was preserved and `feat/backend-commercial-setup` was prepared from d2dd11a in `/run/media/yacine/yassine/DMS/commercial-backend`. The existing cross-thread/CLI resume path was unavailable/read-only, so a dedicated backend-role worker was started in this isolated worktree. It is implementing slice 1 acceptance tests/services/controllers; the architect remains responsible for review and integration. OpenCode's frontend worktree is separate and untouched. This note records dispatch, not feature completion.
+
+
+## Integration status — 2026-11-12
+
+Slice 1 implementation is integrated on feat/architecture-phase1. The worker branch is preserved; no applied migration, Project v2/account contract or frontend source was changed by its implementation. The response-only legacy organization role amendment is included. 50 unit tests and 18 offline contract checks pass, and all main/test sources compile with release 21. Full verify packaged the application but failed at Docker/Testcontainers startup, so V3 and all new PostgreSQL acceptance remain unverified. See ../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md for exact commands and test inventory. Earlier preparation/dispatch entries above are historical. Do not mark acceptance complete until the new host verification passes.
+
+Frontend integration instructions are in FRONTEND-COMMERCIAL-SETUP.md. Invoice/packing content and snapshot APIs remain a separately contracted slice 2.

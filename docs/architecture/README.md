@@ -1,6 +1,6 @@
 # Phase 1 architecture foundations
 
-This branch now combines the architect's database/bootstrap with Agent 2's Project REST and internal-account/assignment implementations. One project **is** one shipment. Angular, OCR/imports, PDF generation, workflow transitions remain outside this delivery; internal account/session authentication is included in source. Agent 2 implemented project behavior against `../contracts/projects-v1.yaml`; see `../../backend/PROJECT-IMPLEMENTATION-HANDOFF.md` for endpoints, authentication and its file inventory. Backend Maven verification now passes: 94 tests with zero failures/errors/skips. Frontend/browser integration, first-admin bootstrap and deployment remain separate checks.
+This branch combines the database/bootstrap, Project REST, internal accounts/form assignments and commercial setup slice 1. One project **is** one shipment. Commercial setup adds company roles, supplier/client/importer/consignee selections and ADMIN-controlled product/grade defaults. The V1/V2 baseline passed 94 tests on host PostgreSQL. The new slice compiles/packages and passes 50 unit plus 18 contract checks; V3 and PostgreSQL acceptance remain pending Docker access. See VALIDATION.md and `../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md`. Angular, shipment invoice/packing entry, OCR/imports, PDF generation and workflow transitions remain separate work.
 
 ## Layout and decisions
 
@@ -8,7 +8,10 @@ This branch now combines the architect's database/bootstrap with Agent 2's Proje
 backend/                  Java 21, Spring Boot 3.5.16, Maven
   src/main/java/com/exportdocs/
     ExportDocsApplication.java
-    project/              Agent 2 implementation: api, application, domain, infrastructure
+    project/              project setup, access and commercial parties
+    party/                organization directory and company selection
+    catalog/              product/grade definitions and protected defaults
+    account/              internal accounts, sessions and form assignments
   src/main/resources/
     application.yml
     db/migration/         Flyway is the sole schema owner
@@ -21,11 +24,11 @@ infra/                    local run helpers; root Compose is canonical
 
 Use one modular monolith, one relational database and synchronous transactions. Within growing modules, use `api -> application -> domain` and infrastructure adapters; controllers call services, not repositories. Do not add generic service frameworks or separate deployable services. The master plan's module-first layout takes precedence over the older top-level layer list in AGENTS.md; shared bootstrap lives under infrastructure. DTO mappings use MapStruct, as AGENTS.md requests.
 
-The project row is the shipment identity. `shipment_transport` is an optional data extension whose PK is the project UUID; it cannot represent a second shipment. Agent 2 creates that row even if all transport fields are initially null. Directory organizations have multiple roles; project links select those roles. This permits several producers/suppliers without deciding the unresolved Trinity/invoice model. Phase 1's singular exporter/consignee API slots are a form projection, not an assertion about every later workflow.
+The project row is the shipment identity. `shipment_transport` is an optional data extension whose PK is the project UUID; it cannot represent a second shipment. Agent 2 creates that row even if all transport fields are initially null. Directory organizations have multiple roles; project links select those roles. Legacy producer arrays remain supported. The new commercial setup permits one supplier, client, importer and consignee per completed shipment; drafts may omit them. Trinity is only a tag. The supplier invoice is billed to the consignee; invoice persistence follows in slice 2.
 
-UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mass or financial values. Catch original quantity/unit can be preserved together, but normalization must be verified by the service; no implicit conversion factor is invented. Events use timestamptz, shipment/production dates use date. No price, currency, invoice or packing-line model is prematurely fixed in this slice.
+UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mass or financial values. Catch original quantity/unit can be preserved together, but normalization must be verified by the service; no implicit conversion factor is invented. Events use timestamptz, shipment/production dates use date. V3 adds nullable ADMIN-controlled carton net-weight and price/currency defaults to grades. Shipment invoice/packing records and immutable applied-default snapshots follow in slice 2.
 
-Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. The host Maven verify run passed: compilation for Java 21, generated mappings, packaging, 17 unit tests and 77 real PostgreSQL integration tests are verified. See VALIDATION.md and `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Review support/security patch policy before production deployment.
+Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. The historical V1/V2 host Maven verify run passed: compilation for Java 21, generated mappings, packaging, 17 unit tests and 77 real PostgreSQL integration tests were verified. New V3 acceptance is tracked separately above. See VALIDATION.md and `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Review support/security patch policy before production deployment.
 
 ## The 26 tables and why they exist
 

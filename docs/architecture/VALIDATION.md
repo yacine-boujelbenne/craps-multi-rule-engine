@@ -1,6 +1,6 @@
 # Validation and delivery
 
-**New commercial slice status (2026-11-12):** V3 and commercial-setup-v1.yaml are prepared; the 12 new PostgreSQL schema cases compile but have not executed because Docker access is denied in this sandbox. All 17 offline contract checks pass. The verified 94-test result below is the V1/V2 baseline and is not evidence that V3 or the unimplemented commercial endpoints have passed.
+**Current commercial slice status (2026-11-12):** Slice 1 is integrated on feat/architecture-phase1: organization directory, protected product/grade defaults and shipment commercial parties. All 18 offline contract checks and 50 backend unit tests pass; main/test sources compile and the application packages. The integrated backend sources match the tested worker tree. V3 migration and PostgreSQL acceptance are still unverified: full Maven verify fails at Testcontainers startup because this sandbox cannot open the Docker socket. The historical 94-test result below verifies only V1/V2. No completion boxes are checked for the new slice.
 
 **Backend verification passed on the host: 94 tests, zero failures/errors/skips.** Independently inspected the saved Surefire XML (17 unit tests), Failsafe XML/summary (77 PostgreSQL integration tests), Flyway V1/V2 application logs and packaged Spring Boot JAR. The host Maven run finished BUILD SUCCESS on 2026-11-12 at 00:48:37+01:00. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Earlier sandbox failures below are historical; frontend/browser acceptance, first-admin bootstrap and deployment are still separate pending checks. No playbook completion boxes were changed.
 
@@ -136,3 +136,22 @@ Blocked: `docker info --format '{{.ServerVersion}}'` still returns socket permis
 Owner authorized starting slice 1. Dedicated backend-role implementation is active in `/run/media/yacine/yassine/DMS/commercial-backend`, branch feat/backend-commercial-setup, based on d2dd11a. Previous backend branch and OpenCode frontend checkout are preserved. The parent added a read-only V3 duplicate-cardinality preflight; no database execution is claimed for that script.
 
 The new commercial contract generated standalone TypeScript definitions successfully with cached openapi-typescript 7.13.0: `/home/yacine/.npm/_npx/21d31b7563e6adbc/node_modules/.bin/openapi-typescript docs/contracts/commercial-setup-v1.yaml -o /tmp/exportdocs-commercial-schema.d.ts`. This checked local/external schema references without changing frontend files or installing dependencies. Backend business implementation/review and new runtime verification are still in progress.
+
+
+## Commercial implementation integrated — 2026-11-12
+
+Integrated worker commits 8269613/baeb51a/6729274/9a63d0e/0ee02a3 as ac6c977/e27dcef/ed1cc3d/f84c581/a5b5a50. Architect-owned preflight, V3 and response-only legacy-role clarification remain present. No frontend, migration or OpenAPI file changed during implementation integration. Existing project/account JSON shapes remain unchanged.
+
+Independently parsed the worker's saved XML: Surefire 50 tests, zero failures/errors/skips; Failsafe six class-startup errors, with no PostgreSQL scenario bodies executed. Worker full verify compiled all 66 main/11 test sources and packaged before failing on Docker access. Its exact commands and test inventory are in `../../backend/COMMERCIAL-SETUP-IMPLEMENTATION-HANDOFF.md`. Integrated source equivalence, 18 offline contract checks and git diff --check pass. No redundant unit rerun was needed after conflict-free integration of identical sources.
+
+Source review covered ADMIN-only master-data writes, exact decimal strings, merged price/currency validation, canonical consignee/shared project revision and legacy metadata. Both old v2 and new commercial company selection now use the same sorted organization row locks; setup writes recheck form permission after the project lock. PostgreSQL concurrency, auditing and migration behavior still require host execution.
+
+Run the following on a host with working Docker before accepting this slice:
+
+```bash
+cd /run/media/yacine/yassine/DMS/architecture-foundations/backend
+./mvnw -Dmaven.compiler.fork=true \
+  -Dmaven.compiler.executable=/snap/intellij-idea/154/jbr/bin/javac verify
+```
+
+On a normal JDK 21 installation, `./mvnw verify` is sufficient. Expected inventory: 50 unit + 77 existing PostgreSQL + 12 V3 schema + 32 new API invocations = 171 tests, with zero failures/errors/skips required. First run the read-only V3 preflight before migrating an existing populated database. Local Compose startup/readiness, administrator bootstrap and frontend/browser checks remain separate checks. No PostgreSQL startup or V3 success is inferred from compilation.
