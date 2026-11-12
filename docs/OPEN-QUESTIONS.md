@@ -55,3 +55,7 @@ The owner's full Maven verify run passed on the integrated architecture worktree
 ## Grades, measurements and certificate scope — resolved by owner, 2026-11-12
 
 Three size grades as supplied in the invoice image; each grade has carton quantity, net/gross measurements and per-kg price, with editable defaults because prices usually repeat. Do not universalize sample carton weights/prices. No catch lot or CC is shared between shipments. One completed shipment has one logical CC and one HC, with revision/preview variants remaining versions of those documents. No required loss/by-product entry, processing equation or yield-tolerance gate; check the coherence of measurements that have been entered. See architecture/QUANTITY-MODEL.md. Existing code/migrations remain unchanged pending the next coordinated contract/schema slice.
+
+## Remembered quantity/default permissions — owner correction, 2026-11-12
+
+Carton quantities, net kg and gross kg are variable per shipment. Box-weight defaults, size grades and price/kg are configurable by ADMIN only; operators assigned to a form may enter actual shipment quantities/weights but cannot modify/override those protected defaults. Sample totals, carton weights and rates are not universal constants. Preserve the values applied to existing shipments/history. See architecture/QUANTITY-MODEL.md and architecture/ACCESS-MODEL.md.

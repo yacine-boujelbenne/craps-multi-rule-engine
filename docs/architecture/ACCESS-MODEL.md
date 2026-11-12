@@ -65,3 +65,7 @@ Agent 2 commits dc058f9 and f78e83e were integrated cleanly as 52f1e3a and 2ec06
 Compilation follow-up: all integrated main/test sources now compile for Java 21; 17 compiled unit tests and 13 contract checks pass. The account HTTP/CSRF/assignment and PostgreSQL integration suites still have not executed. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`; earlier uncompiled statements here describe the initial review stage.
 
 Final backend verification: the host Maven verify run passed with 17 unit and 77 PostgreSQL integration tests, no failures/errors/skips, and V1/V2 applied successfully. Saved reports were independently inspected. Source corrections described above are now covered by the passing backend suite, including 14 AccountApiIT cases. This supersedes earlier backend-runtime-blocked notes; no browser/UI, actual one-time bootstrap or deployment result is implied.
+
+## Additional field restrictions — owner confirmation, 2026-11-12
+
+Carton quantities and total net/gross kg are variable shipment data, editable by the operator assigned to the owning form. Box-weight defaults, size-grade definitions and price/kg are ADMIN-only settings. An INVOICE/PACKING_LIST form grant does not authorize operators to change or override those protected fields. Preserve applied defaults/prices in shipment and invoice history, and enforce the restriction on the server as well as in Angular. See QUANTITY-MODEL.md. These commercial field rules still require the next commercial API contract/implementation; the existing project/auth endpoints are unchanged.

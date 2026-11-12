@@ -6,17 +6,28 @@ This record supersedes earlier proposals that required loss/by-product entry or 
 
 The current product is organized into three size grades shown as 50–80, 80–100 and 100+ in the image's Size (g) column. Preserve these grade labels and units. They are separate from carton net mass: the supplied example shows 12 kg net per carton in every grade. Do not interpret the grade numbers as carton kilograms or assume the example establishes a universal carton weight for all shipments/products.
 
-For each grade, record carton count, net kg per carton when supplied, total finished net kg, total packed gross kg and price per kg. Record invoice currency explicitly; the image uses USD. Prices usually stay the same, so support configurable grade-price defaults with an explicit per-shipment/invoice override. Copy the actual applied price into the invoice line so a later default change does not alter an existing invoice/history. Do not hardcode source-image prices into application constants or fixtures.
+For each grade, record carton count, net kg per carton when supplied, total finished net kg, total packed gross kg and price per kg. Record invoice currency explicitly; the image uses USD. Carton quantities, total net kg and total gross kg vary independently by shipment and must never be fixed to the supplied example. Box-weight defaults, size grades and price/kg are configurable by ADMIN only. An assigned operator may enter shipment quantities and actual net/gross totals, but may not change those defaults or override the protected box weight, grade definition or price/kg through an invoice/packing payload. Copy the applied grade label, box-weight default and price into the shipment/invoice snapshot so later administrative default changes do not rewrite existing data/history. Do not hardcode source-image prices into application constants or fixtures.
 
 When the relevant values exist:
 
-- Total line net kg = cartons × net kg per carton.
+- When all cartons on a line use a declared uniform net kg/carton, compare its line net kg with cartons × net kg/carton. A default is not a substitute for a missing measured shipment total; never silently overwrite an entered measurement or change an admin-controlled box-weight setting to make the numbers match.
 - Line amount = total line net kg × the line price per kg, using exact decimal arithmetic and the invoice's documented rounding/currency policy.
 - Total cartons, net kg, gross kg and invoice amount are sums of their corresponding lines, without joining raw catches into those aggregates.
 - Gross kg must be at least net kg. Reuse the same canonical values across consuming documents; do not ask operators to re-enter independent document totals.
 - Do not derive gross kg from a guessed tare/default ratio. The supplied sample is not a universal weight recipe.
 
 Draft values may be absent. Validate relationships when their inputs exist; show incomplete totals as incomplete rather than silently treating missing inputs as zero/complete. Document-specific readiness remains separate from draft saving.
+
+## Field permissions — explicitly confirmed by owner
+
+| Field group | Shipment behavior | Who may change it |
+|---|---|---|
+| Carton quantity, total net kg, total gross kg | Shipment-specific values; sample totals are never constants. | ADMIN or OPERATOR assigned to the canonical owning form. |
+| Standard/default box weight | Configurable default, preserved as applied for the shipment. | ADMIN only. |
+| Size-grade definitions/labels | Configurable product defaults. | ADMIN only. Operators select existing configured grades as allowed by their form. |
+| Price per kg | Configurable default, preserved as applied on invoice lines. | ADMIN only. No operator price override. |
+
+Form edit assignment does not override these field restrictions. Enforce them on the server as well as through read-only controls/source badges in Angular; reject tampered writes to protected configuration fields. Administrative changes must be explicit and audited, and must not silently recalculate previous invoices/documents. This supersedes the earlier generic phrase “editable price defaults” where it could imply operator access.
 
 ## Record measurements; no required loss workflow
 

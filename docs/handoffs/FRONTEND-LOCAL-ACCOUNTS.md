@@ -44,3 +44,7 @@ Return feature commit(s), changed files, generated contract inputs, commands/res
 ## Delivery attempt from architect sandbox
 
 The architect invoked infra/scripts/request-frontend.sh for the existing session. OpenCode exited 1 before delivery: FileSystem.open failed for `/home/yacine/.local/share/opencode/log/opencode.log`. This sandbox permits writes under the DMS workspace and /tmp, not that home-directory log path. The prompt is prepared, but no successful send or frontend restart is claimed. Run the same script from the normal host terminal to deliver it with the user's existing OpenCode session/configuration. Do not work around the boundary by manually editing OpenCode's session database.
+
+## Later owner clarification for commercial forms
+
+Shipment carton quantities and net/gross kg vary for every shipment. Box-weight defaults, size-grade definitions and price/kg are ADMIN-only. A form edit assignment allows operator entry of that form's shipment quantities/weights; it does not permit changing these protected defaults. Display the defaults as read-only for operators and enforce the equivalent server rules when the commercial API is published. Do not hardcode sample shipment values or implement uncontracted endpoints. See the latest architecture/QUANTITY-MODEL.md.
