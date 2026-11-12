@@ -6,7 +6,7 @@
 - Manual entry first; OCR/import is later. Angular only; Lucent is a source of visual/animation ideas, not a template.
 
 # Unresolved business choices (do not invent)
-1. RESOLVED 2026-11-12: one supplier/factory, one consignee, one client, one importer and one general factory invoice per shipment. Client/importer/consignee may differ. Trinity is only a tag. OPEN: who is billed on the factory invoice? See architecture/COMMERCIAL-MODEL.md.
+1. RESOLVED 2026-11-12: one supplier/factory, one consignee, one client, one importer and one general factory invoice per shipment. Client/importer/consignee may differ. Trinity is only a tag. RESOLVED: the factory/supplier issues the invoice to the consignee (billed party). See architecture/COMMERCIAL-MODEL.md.
 2. Who supplies lock number and which outputs require it?
 3. Exact catch-to-export batch/processing yield equation and permitted deviations.
 4. Which authority/issuer and accepted template for HC, CC, CO; what destinations at launch?
