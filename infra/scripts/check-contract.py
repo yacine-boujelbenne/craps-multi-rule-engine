@@ -123,6 +123,14 @@ class ProjectContractChecks(unittest.TestCase):
         self.assertTrue(validate('CreateOrganizationRequest', {'legalName': 'Fictional partner',
             'roles': [0]}, COMMERCIAL_SCHEMAS))
 
+    def test_legacy_unconfigured_organization_remains_readable(self):
+        record = {'id': '00000000-0000-0000-0000-000000000010', 'version': 0,
+                  'legalName': 'Fictional existing organization', 'countryCode': None,
+                  'addressText': None, 'registrationNumber': None, 'roles': [], 'active': True,
+                  'createdAt': '2026-11-12T00:00:00Z', 'updatedAt': '2026-11-12T00:00:00Z'}
+        self.assertFalse(validate('OrganizationResponse', record, COMMERCIAL_SCHEMAS))
+        self.assertTrue(validate('CreateOrganizationRequest', {'legalName': record['legalName'], 'roles': []}, COMMERCIAL_SCHEMAS))
+
     def test_catalog_decimals_are_bounded_strings(self):
         good = {'code': 'SYNTHETIC', 'name': 'Fictional grade',
                 'defaultCartonNetKg': '11.125', 'defaultPricePerKg': '4.1234', 'defaultCurrency': 'USD'}

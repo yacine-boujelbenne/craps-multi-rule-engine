@@ -884,10 +884,14 @@ components:
           nullable: true
         roles:
           type: array
-          minItems: 1
+          minItems: 0
           maxItems: 11
           uniqueItems: true
-          items: *id002
+          items:
+            $ref: '#/components/schemas/OrganizationRole'
+          description: May be empty for an existing unconfigured organization. New/updated
+            role sets require at least one role; shipment assignment always validates
+            role membership.
         active:
           type: boolean
         createdAt:

@@ -41,7 +41,7 @@ V3 adds no tables. It versions organizations/products/grades, adds grade default
 
 ## DTO, decimal and validation rules
 
-All fields/types/requiredness are in OpenAPI. Reject unknown body/query properties, repeated query parameters, wrong JSON types, malformed UUIDs and enum ordinals. Responses include every documented nullable field as null when absent; role arrays are nonempty unique sets.
+All fields/types/requiredness are in OpenAPI. Reject unknown body/query properties, repeated query parameters, wrong JSON types, malformed UUIDs and enum ordinals. Responses include every documented nullable field as null when absent. Create/update role arrays are nonempty unique sets; an existing unconfigured organization may return an empty roles array without acquiring any implicit role.
 
 Trim outer whitespace from names/codes. Reject blank required text. Preserve case for product/grade codes (DB uniqueness is case-sensitive). Normalize optional blank address/registration/scientific-name text to null; validate country, HS and currency codes when supplied. Organization registration/name has no invented global uniqueness constraint. Role replacement that removes an in-use project role returns 409/roles/role_in_use; do not cascade away shipment links. Deactivation preserves referenced rows.
 
