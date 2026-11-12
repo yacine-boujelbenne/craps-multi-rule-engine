@@ -1,6 +1,6 @@
 # Validation and delivery
 
-**Current commercial slice status (2026-11-12):** Slice 1 is integrated on feat/architecture-phase1: organization directory, protected product/grade defaults and shipment commercial parties. All 18 offline contract checks and 50 backend unit tests pass; main/test sources compile and the application packages. The integrated backend sources match the tested worker tree. V3 migration and PostgreSQL acceptance are still unverified: full Maven verify fails at Testcontainers startup because this sandbox cannot open the Docker socket. The historical 94-test result below verifies only V1/V2. No completion boxes are checked for the new slice.
+**Current commercial slice status (2026-11-12, host recheck):** Host PostgreSQL 16.15 started, Flyway applied V1/V2/V3, all 12 V3 schema cases and the 77 existing PostgreSQL integration cases passed. All 50 unit and 18 offline contract checks pass. Full verification currently fails: 31 of 32 new commercial API cases fail because their write helper injects a `_csrf` request parameter that the strict JSON API rejects as an unknown query parameter. Backend Agent 2 is correcting that helper to send the contract's CSRF header and adding database-free MVC regression coverage. Commercial API acceptance requires a fresh full host verification after integration. Earlier Docker-blocked entries below describe the sandbox, not this host run.
 
 **Backend verification passed on the host: 94 tests, zero failures/errors/skips.** Independently inspected the saved Surefire XML (17 unit tests), Failsafe XML/summary (77 PostgreSQL integration tests), Flyway V1/V2 application logs and packaged Spring Boot JAR. The host Maven run finished BUILD SUCCESS on 2026-11-12 at 00:48:37+01:00. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Earlier sandbox failures below are historical; frontend/browser acceptance, first-admin bootstrap and deployment are still separate pending checks. No playbook completion boxes were changed.
 
@@ -159,3 +159,10 @@ On a normal JDK 21 installation, `./mvnw verify` is sufficient. Expected invento
 ## Host verification helper integrated — 2026-11-12
 
 Integrated Backend Agent 2 commit 3d4ea5d as 636c0f6: backend/verify.sh and backend/VERIFYING.md. The helper checks Docker access, selects an existing Java compiler and execs the full Maven verify command without adding test-skip options. Shell syntax passes. An actual sandbox invocation fails before Maven with an explicit Docker-unavailable error (exit 1); host success remains unclaimed. The helper changes no application sources, migrations, dependencies or frontend files.
+
+
+## First V3 host execution — 2026-11-12
+
+Independently inspected the integrated worktree's host-generated Surefire/Failsafe XML. Surefire: 50 tests, no failures/errors/skips. Failsafe: 121 invocations, 31 failures, no errors/skips. AccountApiIT 14, AccountAssignmentsIT 6, FoundationsIT 16, ProjectApiIT 41 and CommercialSetupSchemaIT 12 all pass. CommercialSetupApiIT: 32 tests, 31 failures. Logs confirm PostgreSQL 16.15 and successful application of all three migrations.
+
+The common failure is HTTP 400 with errors[].field `_csrf` and detail `Unknown or repeated query parameter.` The new integration helper uses csrf() (a request parameter) instead of csrf().asHeader() (the published SPA transport). Two concurrency tests also fail waiting for latches because the request is rejected before entering the service. Preserve strict query validation and CSRF enforcement; repair the test transport, then rerun the real PostgreSQL scenarios. A passing schema or corrected fixture does not establish commercial API acceptance until that rerun passes.
