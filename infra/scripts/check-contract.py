@@ -28,6 +28,8 @@ def json_schema(value):
 SCHEMAS = json_schema(SPEC['components']['schemas'])
 ACCESS_SPEC = yaml.safe_load((ROOT / 'docs/contracts/accounts-access-v1.yaml').read_text())
 ACCESS_SCHEMAS = json_schema(ACCESS_SPEC['components']['schemas'])
+COMMERCIAL_SPEC = yaml.safe_load((ROOT / 'docs/contracts/commercial-setup-v1.yaml').read_text())
+COMMERCIAL_SCHEMAS = json_schema(COMMERCIAL_SPEC['components']['schemas'])
 
 
 def validate(name, payload, schemas=SCHEMAS):
@@ -110,6 +112,43 @@ class ProjectContractChecks(unittest.TestCase):
         self.assertEqual(updated['paths']['/api/projects']['post']['x-required-role'], 'ADMIN')
         self.assertEqual(updated['paths']['/api/projects/{id}']['patch']['x-edit-form'], 'PROJECT_SETUP')
         self.assertEqual(updated['security'], [{'sessionAuth': []}])
+
+    def test_commercial_parties_are_separate_nullable_scalar_roles(self):
+        self.assertFalse(validate('UpdateCommercialPartiesRequest', {'expectedVersion': 0,
+            'supplierId': None, 'clientId': None, 'importerId': None, 'consigneeId': None}, COMMERCIAL_SCHEMAS))
+        self.assertTrue(validate('UpdateCommercialPartiesRequest', {'expectedVersion': 0,
+            'supplierId': []}, COMMERCIAL_SCHEMAS))
+        self.assertFalse(validate('CreateOrganizationRequest', {'legalName': 'Fictional partner',
+            'roles': ['CLIENT', 'IMPORTER', 'CONSIGNEE']}, COMMERCIAL_SCHEMAS))
+        self.assertTrue(validate('CreateOrganizationRequest', {'legalName': 'Fictional partner',
+            'roles': [0]}, COMMERCIAL_SCHEMAS))
+
+    def test_catalog_decimals_are_bounded_strings(self):
+        good = {'code': 'SYNTHETIC', 'name': 'Fictional grade',
+                'defaultCartonNetKg': '11.125', 'defaultPricePerKg': '4.1234', 'defaultCurrency': 'USD'}
+        self.assertFalse(validate('CreateGradeRequest', good, COMMERCIAL_SCHEMAS))
+        for key, values in [('defaultCartonNetKg', [11.125, '0', '0.000', '-1', '1.2345', '1e1']),
+                            ('defaultPricePerKg', [4.1234, '-1', '1.23456', '1e1'])]:
+            for value in values:
+                bad = {**good, key: value}
+                self.assertTrue(validate('CreateGradeRequest', bad, COMMERCIAL_SCHEMAS), (key, value))
+
+    def test_catalog_writes_are_admin_only_and_parties_require_setup(self):
+        for path, methods in COMMERCIAL_SPEC['paths'].items():
+            for verb in ['post', 'patch']:
+                if verb in methods:
+                    if path.endswith('/commercial-parties'):
+                        self.assertEqual(methods[verb]['x-edit-form'], 'PROJECT_SETUP')
+                    else:
+                        self.assertEqual(methods[verb]['x-required-role'], 'ADMIN')
+        self.assertNotIn('/api/projects', COMMERCIAL_SPEC['paths'])
+
+    def test_catalog_patch_preserves_missing_and_null_rules(self):
+        self.assertFalse(validate('UpdateGradeRequest', {'expectedVersion': 1,
+            'defaultPricePerKg': None, 'defaultCurrency': None}, COMMERCIAL_SCHEMAS))
+        for bad in [{}, {'expectedVersion': -1}, {'expectedVersion': 0, 'code': None},
+                    {'expectedVersion': 0, 'active': None}, {'expectedVersion': 0, 'unownedField': 1}]:
+            self.assertTrue(validate('UpdateGradeRequest', bad, COMMERCIAL_SCHEMAS))
 
     def test_all_operations_have_explicit_problem_responses(self):
         for path in SPEC['paths'].values():

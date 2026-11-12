@@ -1,4 +1,6 @@
-# Phase 1 contracts
+# Shared API contracts
+
+**Next commercial slice:** `commercial-setup-v1.yaml` adds organization/product/grade directories and `/api/projects/{id}/commercial-parties` without changing Project v2 JSON. V3 supplies the supporting schema and confirmed single-CC/HC rules. Business endpoint implementation is pending Agent 2; see `../handoffs/BACKEND-COMMERCIAL-SETUP.md`. The subsequent invoice/packing snapshot contract is a separate slice.
 
 **Access update:** the owner now requires internal admin-managed accounts and per-form editing. `projects-v2.yaml` and `accounts-access-v1.yaml` are the stable target contracts for that change; Agent 2's implementation is integrated in source; the host Maven verify run passed all 94 backend tests; frontend/browser acceptance remains separate. See `../architecture/ACCESS-MODEL.md`. The existing v1 artifact is preserved for compatibility/history.
 
@@ -9,7 +11,7 @@
 - Architect: this contract, Flyway migrations, Maven/bootstrap/health, architecture docs.
 - Agent 2: `com.exportdocs.project/{api,application,domain,infrastructure}`, party/port lookups, DTO validation, MapStruct mappings, services, repositories, business controllers, authentication/access checks and their tests. Do not duplicate migrations.
 - Angular agent: frontend only; generate typed clients from this YAML with the agreed `npm run gen:api` script. This foundation does not change frontend files.
-- Contract changes require a coordinated version update before dependent edits. V1 migrations are reserved here. Never edit an applied migration; next change uses V2 or later after coordination.
+- Contract changes require a coordinated version update before dependent edits. V1/V2 are applied and preserved; V3 is reserved for commercial setup. Never edit an applied migration; coordinate the next available version.
 
 ## DTO and storage mapping
 

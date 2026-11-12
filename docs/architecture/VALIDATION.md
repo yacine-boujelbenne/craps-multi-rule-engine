@@ -1,4 +1,6 @@
-# Phase 1 validation and delivery — 2026-11-11
+# Validation and delivery
+
+**New commercial slice status (2026-11-12):** V3 and commercial-setup-v1.yaml are prepared; the 12 new PostgreSQL schema cases compile but have not executed because Docker access is denied in this sandbox. All 17 offline contract checks pass. The verified 94-test result below is the V1/V2 baseline and is not evidence that V3 or the unimplemented commercial endpoints have passed.
 
 **Backend verification passed on the host: 94 tests, zero failures/errors/skips.** Independently inspected the saved Surefire XML (17 unit tests), Failsafe XML/summary (77 PostgreSQL integration tests), Flyway V1/V2 application logs and packaged Spring Boot JAR. The host Maven run finished BUILD SUCCESS on 2026-11-12 at 00:48:37+01:00. See `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Earlier sandbox failures below are historical; frontend/browser acceptance, first-admin bootstrap and deployment are still separate pending checks. No playbook completion boxes were changed.
 
@@ -120,3 +122,11 @@ Imported Agent 2 report f9b95fa. Independently parsed all seven saved TEST-*.xml
 Saved integration output confirms real PostgreSQL 16.15 containers started, Flyway validated/applied both V1 and V2, and Spring Boot/MockMvc initialized. `backend/target/exportdocs-backend-0.1.0-SNAPSHOT.jar` exists. The owner ran the complete Maven verify command from the normal host terminal with the configured compiler; this supersedes earlier incomplete-plugin/DNS/Docker-blocked backend acceptance status. Sandbox tools remaining restricted do not negate the verified host result. No source changes or redundant test reruns were needed.
 
 Current acceptance: backend schema, migrations, application initialization, project/auth/permission endpoints through real PostgreSQL/MockMvc, compile/package and all 94 backend tests passed. The separate 13 offline contract checks also passed previously. Local Compose configuration is validated; a configured long-running Compose development database, one-time administrator bootstrap, frontend/browser journey and deployment are not established by this test run and remain separately pending. Unresolved later commercial/processing/document business decisions remain recorded in DECISIONS.md.
+
+## Commercial setup contract and V3 preparation — 2026-11-12
+
+Added commercial-setup-v1.yaml, architect-owned V3 migration, CommercialSetupSchemaIT and BACKEND-COMMERCIAL-SETUP.md; extended the contract checker and contract/decision documentation. No business controllers or frontend files were changed; Project v2/account contracts and applied V1/V2 remain unchanged. This first commercial slice adds no tables.
+
+Passed: 17 offline contract checks (13 existing + 4 commercial cases), local OpenAPI reference resolution (84 references before the final response-header additions; all referenced components resolved), YAML parse and git diff --check. Maven offline test-compile passed with release 21, compiling all 8 test sources including the 12 parameterized/schema cases in CommercialSetupSchemaIT. Command: `./mvnw -o -Dmaven.repo.local=/tmp/dms-backend-recheck-maven -Dmaven.compiler.fork=true -Dmaven.compiler.executable=/snap/intellij-idea/154/jbr/bin/javac test-compile` from backend.
+
+Blocked: `docker info --format '{{.ServerVersion}}'` still returns socket permission denied here. V3 migration execution and the new schema tests have not run. Reuse the host verification route after Agent 2 implements the published commercial API; do not reinterpret the historical 94-test success as V3 acceptance. Compile success is not migration/service correctness.

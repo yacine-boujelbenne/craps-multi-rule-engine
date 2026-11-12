@@ -1,0 +1,1250 @@
+openapi: 3.0.3
+info:
+  title: Commercial setup, directory and protected grade defaults
+  version: 1.0.0
+  description: Slice 1 target contract. Adds subresources without modifying Project
+    v2 JSON. Local sessions/CSRF use accounts-access-v1. ADMIN exclusively changes
+    directory/catalog defaults. Backend controllers/services are pending Agent 2 implementation.
+servers:
+- url: http://localhost:8080
+security:
+- sessionAuth: []
+paths:
+  /api/organizations:
+    post:
+      operationId: createOrganization
+      summary: ADMIN creates organization
+      responses:
+        '201':
+          description: Created. Location identifies the resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+          headers:
+            Location:
+              description: Canonical URI of the created resource.
+              schema:
+                type: string
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      x-required-role: ADMIN
+    get:
+      operationId: listOrganizations
+      summary: List active organizations; fixed name ASC, id ASC order
+      responses:
+        '200':
+          description: Authorized page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationPage'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 250
+          description: Trimmed case-insensitive literal name/code prefix; escape SQL
+            wildcards.
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          description: ADMIN only when true. All ready read roles may read active
+            directory records.
+      - name: role
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/OrganizationRole'
+  /api/organizations/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: &id001
+        type: string
+        format: uuid
+    get:
+      operationId: getOrganization
+      summary: Read organization metadata, including inactive records for history
+      responses:
+        '200':
+          description: Resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+    patch:
+      operationId: updateOrganization
+      summary: ADMIN partially updates organization with expectedVersion
+      responses:
+        '200':
+          description: Updated once; equivalent/version-only requests do not mutate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      x-required-role: ADMIN
+  /api/products:
+    post:
+      operationId: createProduct
+      summary: ADMIN creates product
+      responses:
+        '201':
+          description: Created. Location identifies the resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+          headers:
+            Location:
+              description: Canonical URI of the created resource.
+              schema:
+                type: string
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      x-required-role: ADMIN
+    get:
+      operationId: listProducts
+      summary: List active products; fixed name ASC, id ASC order
+      responses:
+        '200':
+          description: Authorized page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 250
+          description: Trimmed case-insensitive literal name/code prefix; escape SQL
+            wildcards.
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          description: ADMIN only when true. All ready read roles may read active
+            directory records.
+  /api/products/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: *id001
+    get:
+      operationId: getProduct
+      summary: Read product metadata, including inactive records for history
+      responses:
+        '200':
+          description: Resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+    patch:
+      operationId: updateProduct
+      summary: ADMIN partially updates product with expectedVersion
+      responses:
+        '200':
+          description: Updated once; equivalent/version-only requests do not mutate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      x-required-role: ADMIN
+  /api/products/{productId}/grades:
+    parameters:
+    - name: productId
+      in: path
+      required: true
+      schema: *id001
+    get:
+      operationId: listGrades
+      summary: List product grades ordered displayOrder ASC, code ASC, id ASC
+      responses:
+        '200':
+          description: Grade page; parent product must exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradePage'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 250
+          description: Trimmed case-insensitive literal name/code prefix; escape SQL
+            wildcards.
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          description: ADMIN only when true. All ready read roles may read active
+            directory records.
+    post:
+      operationId: createGrade
+      summary: ADMIN configures a product size grade and its defaults
+      responses:
+        '201':
+          description: Created. Location identifies the grade.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeResponse'
+          headers:
+            Location:
+              description: Canonical URI of the created resource.
+              schema:
+                type: string
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGradeRequest'
+      x-required-role: ADMIN
+  /api/products/{productId}/grades/{gradeId}:
+    parameters:
+    - name: productId
+      in: path
+      required: true
+      schema: *id001
+    - name: gradeId
+      in: path
+      required: true
+      schema: *id001
+    get:
+      operationId: getGrade
+      summary: Read a grade belonging to the requested product, including inactive
+        metadata
+      responses:
+        '200':
+          description: Grade defaults.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeResponse'
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+    patch:
+      operationId: updateGrade
+      summary: ADMIN changes grade/box-weight/price defaults; never rewrites shipments
+      responses:
+        '200':
+          description: Updated grade version; historical shipment values are unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeResponse'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGradeRequest'
+      x-required-role: ADMIN
+  /api/projects/{id}/commercial-parties:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema: *id001
+    get:
+      operationId: getCommercialParties
+      summary: Read one shipment supplier/client/importer/consignee under a consistent
+        snapshot
+      responses:
+        '200':
+          description: All four nullable fields are present; version is the shared
+            project revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommercialPartiesResponse'
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+    patch:
+      operationId: updateCommercialParties
+      summary: ADMIN or assigned OPERATOR with PROJECT_SETUP changes shipment commercial
+        parties
+      responses:
+        '200':
+          description: Atomic save; changed parties increment project.version once;
+            no-op unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommercialPartiesResponse'
+        '400':
+          description: Invalid fields/types/code/decimal precision, null nonnullable
+            property, unknown field/query, or invalid pagination.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '401':
+          description: Local authentication/session required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403':
+          description: Insufficient role/form permission, temporary password restriction
+            or CSRF failure.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404':
+          description: Missing/inactive/inaccessible resource.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '409':
+          description: Duplicate code, stale expectedVersion or role still used by
+            a project.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '422':
+          description: Unknown/inactive organization or incompatible party role.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommercialPartiesRequest'
+      x-edit-form: PROJECT_SETUP
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: Server-managed session after local login. Mutating requests additionally
+        require X-XSRF-TOKEN matching the XSRF-TOKEN cookie.
+  schemas:
+    OrganizationRole:
+      type: string
+      enum:
+      - EXPORTER
+      - PRODUCER
+      - SUPPLIER
+      - BUYER
+      - CONSIGNEE
+      - NOTIFY_PARTY
+      - FREIGHT_FORWARDER
+      - SHIPPING_LINE
+      - AUTHORITY
+      - CLIENT
+      - IMPORTER
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - legalName
+      - roles
+      properties:
+        legalName:
+          type: string
+          maxLength: 250
+          minLength: 1
+        countryCode:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2. Validate actual code at service boundary.
+        addressText:
+          type: string
+          maxLength: 4000
+          nullable: true
+        registrationNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 11
+          uniqueItems: true
+          items: &id002
+            $ref: '#/components/schemas/OrganizationRole'
+        active:
+          type: boolean
+          default: true
+    UpdateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion: &id003
+          type: integer
+          format: int64
+          minimum: 0
+        legalName:
+          type: string
+          maxLength: 250
+          minLength: 1
+        countryCode:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2. Validate actual code at service boundary.
+        addressText:
+          type: string
+          maxLength: 4000
+          nullable: true
+        registrationNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 11
+          uniqueItems: true
+          items: *id002
+        active:
+          type: boolean
+    OrganizationResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - legalName
+      - countryCode
+      - addressText
+      - registrationNumber
+      - roles
+      - active
+      - createdAt
+      - updatedAt
+      properties:
+        id: *id001
+        version: *id003
+        legalName:
+          type: string
+          maxLength: 250
+          minLength: 1
+        countryCode:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2. Validate actual code at service boundary.
+        addressText:
+          type: string
+          maxLength: 4000
+          nullable: true
+        registrationNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+        roles:
+          type: array
+          minItems: 1
+          maxItems: 11
+          uniqueItems: true
+          items: *id002
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateProductRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - name
+      properties:
+        code: &id004
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+          description: Trim outer whitespace; preserve case. Uniqueness is case-sensitive,
+            as in the database.
+        name:
+          type: string
+          maxLength: 250
+          minLength: 1
+        scientificName:
+          type: string
+          maxLength: 250
+          nullable: true
+        hsCode:
+          type: string
+          nullable: true
+          pattern: ^[0-9]{6,10}$
+        active:
+          type: boolean
+          default: true
+    UpdateProductRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion: *id003
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+          description: Trim outer whitespace; preserve case. Uniqueness is case-sensitive,
+            as in the database.
+        name:
+          type: string
+          maxLength: 250
+          minLength: 1
+        scientificName:
+          type: string
+          maxLength: 250
+          nullable: true
+        hsCode:
+          type: string
+          nullable: true
+          pattern: ^[0-9]{6,10}$
+        active:
+          type: boolean
+    ProductResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - code
+      - name
+      - scientificName
+      - hsCode
+      - active
+      properties:
+        id: *id001
+        version: *id003
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+          description: Trim outer whitespace; preserve case. Uniqueness is case-sensitive,
+            as in the database.
+        name:
+          type: string
+          maxLength: 250
+          minLength: 1
+        scientificName:
+          type: string
+          maxLength: 250
+          nullable: true
+        hsCode:
+          type: string
+          nullable: true
+          pattern: ^[0-9]{6,10}$
+        active:
+          type: boolean
+    CreateGradeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - name
+      properties:
+        code: *id004
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        displayOrder:
+          type: integer
+          minimum: 0
+          default: 0
+        defaultCartonNetKg:
+          type: string
+          nullable: true
+          pattern: ^(?!0(?:\.0{1,3})?$)(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,3})?$
+          description: Exact positive decimal kg string, numeric(18,3), response has
+            exactly 3 fractional digits. No exponent, numeric JSON token or excess
+            precision.
+        defaultPricePerKg:
+          type: string
+          nullable: true
+          pattern: ^(?:0|[1-9][0-9]{0,13})(?:\.[0-9]{1,4})?$
+          description: Exact nonnegative decimal per-kg price string, numeric(18,4),
+            response has exactly 4 fractional digits. No numeric JSON token or excess
+            precision.
+        defaultCurrency:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{3}$
+          description: Validate ISO 4217 code; price/currency must be either both
+            null or both set after merging the request.
+        active:
+          type: boolean
+          default: true
+    UpdateGradeRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion: *id003
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+          description: Trim outer whitespace; preserve case. Uniqueness is case-sensitive,
+            as in the database.
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        displayOrder:
+          type: integer
+          minimum: 0
+        defaultCartonNetKg:
+          type: string
+          nullable: true
+          pattern: ^(?!0(?:\.0{1,3})?$)(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,3})?$
+          description: Exact positive decimal kg string, numeric(18,3), response has
+            exactly 3 fractional digits. No exponent, numeric JSON token or excess
+            precision.
+        defaultPricePerKg:
+          type: string
+          nullable: true
+          pattern: ^(?:0|[1-9][0-9]{0,13})(?:\.[0-9]{1,4})?$
+          description: Exact nonnegative decimal per-kg price string, numeric(18,4),
+            response has exactly 4 fractional digits. No numeric JSON token or excess
+            precision.
+        defaultCurrency:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{3}$
+          description: Validate ISO 4217 code; price/currency must be either both
+            null or both set after merging the request.
+        active:
+          type: boolean
+    GradeResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - productId
+      - version
+      - code
+      - name
+      - displayOrder
+      - defaultCartonNetKg
+      - defaultPricePerKg
+      - defaultCurrency
+      - active
+      properties:
+        id: *id001
+        productId: *id001
+        version: *id003
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+          description: Trim outer whitespace; preserve case. Uniqueness is case-sensitive,
+            as in the database.
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        displayOrder:
+          type: integer
+          minimum: 0
+        defaultCartonNetKg:
+          type: string
+          nullable: true
+          pattern: ^(?!0(?:\.0{1,3})?$)(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,3})?$
+          description: Exact positive decimal kg string, numeric(18,3), response has
+            exactly 3 fractional digits. No exponent, numeric JSON token or excess
+            precision.
+        defaultPricePerKg:
+          type: string
+          nullable: true
+          pattern: ^(?:0|[1-9][0-9]{0,13})(?:\.[0-9]{1,4})?$
+          description: Exact nonnegative decimal per-kg price string, numeric(18,4),
+            response has exactly 4 fractional digits. No numeric JSON token or excess
+            precision.
+        defaultCurrency:
+          type: string
+          nullable: true
+          pattern: ^[A-Z]{3}$
+          description: Validate ISO 4217 code; price/currency must be either both
+            null or both set after merging the request.
+        active:
+          type: boolean
+    CommercialPartiesResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - version
+      - supplierId
+      - clientId
+      - importerId
+      - consigneeId
+      properties:
+        projectId: *id001
+        version: *id003
+        supplierId: &id005
+          type: string
+          format: uuid
+          nullable: true
+        clientId: &id006
+          type: string
+          format: uuid
+          nullable: true
+        importerId: &id007
+          type: string
+          format: uuid
+          nullable: true
+        consigneeId: &id008
+          type: string
+          format: uuid
+          nullable: true
+    UpdateCommercialPartiesRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion: *id003
+        supplierId: *id005
+        clientId: *id006
+        importerId: *id007
+        consigneeId: *id008
+    OrganizationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationResponse'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    ProductPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    GradePage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradeResponse'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
