@@ -2,13 +2,25 @@
 
 Angular + Spring Boot + PostgreSQL platform that links and generates the export documents of a seafood shipment (invoice, packing list, catch certificates, BL, HC, CO, PS), built with Maestro agents (Codex and OpenCode).
 
-## Start in 6 steps
-1. Read `docs/03-maestro-runbook.md` and install Maestro plus Codex and OpenCode.
-2. `cp .env.example .env && docker compose up -d db`
-3. `git init && git add . && git commit -m "chore: initial scaffold"`
-4. In Maestro, create the six agents from `docs/02-agent-roster.md`.
-5. Point Auto Run at `.maestro/playbooks` and run `Phase-0-Foundations` in order.
-6. Answer anything the agents put in `docs/OPEN-QUESTIONS.md`, then continue with Phase 1.
+## Workspace and local development
+
+The single project checkout is `/run/media/yacine/yassine/DMS/export-docs-platform`. Backend, frontend, documentation and infrastructure live together here; use Git branches instead of duplicate project folders. Read [docs/WORKSPACE.md](docs/WORKSPACE.md) for integration status and [docs/architecture/README.md](docs/architecture/README.md) for the data model.
+
+```bash
+# From the project root, create .env from .env.example only if it does not exist,
+# then configure its local PostgreSQL password.
+docker compose up -d --wait db
+./infra/scripts/backend-local.sh
+```
+
+In another terminal:
+
+```bash
+cd frontend
+npm start
+```
+
+Backend verification: `./backend/verify.sh` with working Docker. Frontend checks: run the frontend package's test/build scripts. See [infra/README.md](infra/README.md) and [backend/VERIFYING.md](backend/VERIFYING.md) for prerequisites; account bootstrap remains explicit. Existing uncommitted frontend changes are preserved and still belong to the frontend agent.
 
 ## Phases
 | Folder | Result |

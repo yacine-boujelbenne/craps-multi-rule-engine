@@ -23,6 +23,9 @@ Export documentation platform for seafood shipments. Exactly one shipment is one
 - Inherited fields are read-only and show a source badge. Never let a form silently overwrite a field owned by another document.
 - i18n FR/EN with Angular i18n or ngx-translate (decide once in Phase 0, then stay consistent).
 
+## Workspace rule — owner update, 2026-11-12
+Use one physical checkout: `/run/media/yacine/yassine/DMS/export-docs-platform`. Keep backend, frontend, docs and infra together here. Use isolated Git branches and coordinate branch switches; do not create additional worktree folders or duplicate project copies. Historical paths in verification reports describe past runs, not active checkouts.
+
 ## Git rules
 - Work on a branch named `feat/<area>-<short-name>`. Small commits, conventional messages (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
 - Never commit secrets, `.env`, uploaded documents, or real customer data.

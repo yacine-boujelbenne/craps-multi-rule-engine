@@ -1,6 +1,6 @@
 # OpenCode: commercial setup slice 1
 
-Continue Angular work in your isolated frontend branch. Preserve existing local changes and coordinate integration from feat/architecture-phase1; do not reset the frontend checkout. The backend implementation is integrated, compiles/packages and passes 72 unit/MVC tests. Host V3/schema and existing PostgreSQL cases now pass. The CSRF test helper is corrected; new commercial API acceptance awaits a full rerun; contract-driven UI work can proceed now.
+Continue Angular work under `/run/media/yacine/yassine/DMS/export-docs-platform/frontend` in the single shared checkout. Preserve existing local changes and coordinate Git branch switches; do not create another worktree. The integrated backend compiles and passes 79 unit/MVC tests. The latest host run passed V3/schema and 120 of 121 PostgreSQL cases; a strict UUID binding correction addresses the remaining malformed-ID failure and needs a final host rerun. Contract-driven UI work can proceed.
 
 Read AGENTS.md, docs/architecture/ACCESS-MODEL.md, docs/architecture/COMMERCIAL-MODEL.md, docs/architecture/QUANTITY-MODEL.md and docs/contracts/commercial-setup-v1.yaml. Use projects-v2.yaml and accounts-access-v1.yaml for existing project/session behavior. Generate typed clients through the agreed frontend generator; do not hand-invent request shapes. The commercial contract has also generated successfully with openapi-typescript 7.13.0.
 
