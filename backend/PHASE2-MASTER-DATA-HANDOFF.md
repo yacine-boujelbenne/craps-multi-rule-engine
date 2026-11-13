@@ -28,7 +28,7 @@ mutating historical document snapshots.
 
 ## Published database contract and mapping
 
-The committed target artifacts are `V4__master_data_addresses_factories_and_project_products.sql` and `docs/contracts/master-data-v1.yaml`. Apply V4 only after V1-V3. It is additive; it does not rename/drop tables, rewrite project rows, or transform legacy organization.address_text. Existing API consumers keep their V1/V2 responses. These are ready for Agent 2 to implement against.
+The committed target artifacts are `V4__master_data_addresses_factories_and_project_products.sql` and `docs/contracts/master-data-v1.yaml` v1.1.0 (contract-gap correction commit to follow). Apply V4 only after V1-V3. It is additive; it does not rename/drop tables, rewrite project rows, or transform legacy organization.address_text. Existing API consumers keep their V1/V2 responses. These are ready for Agent 2 to implement against.
 
 | API/resource | Storage and rule |
 | --- | --- |
@@ -41,7 +41,11 @@ The committed target artifacts are `V4__master_data_addresses_factories_and_proj
 | Shipment products | `project_product` links one product and optional existing product_category to a shipment. It holds nullable progressive carton/quantity/net/gross/price/currency/lot/process data. Weights and prices use exact numerics. These are source shipment facts, never reusable product defaults. |
 | Documents | Existing append-only `document_version.snapshot_json` is the historical record. Document assembly stores legal/trade name, chosen structured address fields, factory approval ID/reference/authority/country/validity, product/classification/grade labels and source IDs in that version snapshot. No update to organization/factory/product changes existing document versions. |
 
-Existing commercial-parties remains the distinct clientId/consigneeId API. Same company can occupy both roles; if separate, IDs remain separate. V4 does not infer either role from the other. Existing project JSON stays unchanged. Additive `/api/projects/{id}/factory` selects factory and advances the shared project version. `/api/projects/{id}/products` owns shipment product quantities and advances the same project revision (coordinate transactional revision/audit implementation). Project creation remains reference-only and its existing ADMIN permission is unchanged until the owner explicitly changes the access contract; assigned operators edit only their granted forms.
+Existing commercial-parties remains the distinct clientId/consigneeId API. Same company can occupy both roles; if separate, IDs remain separate. V4 does not infer either role from the other. Existing project JSON stays unchanged. v1.1 adds company/product CRUD metadata, structured address PATCH, taxonomy-category CRUD and product-category assignment replacement. Existing `product_category` remains the selectable packing grade; taxonomy does not replace it.
+
+Additive `/api/projects/{id}/factory` has GET for the selected factory and PUT for replacement. `/api/projects/{id}/products` POST/GET and `/{projectProductId}` PATCH own shipment product details. Every project relationship mutation sends `expectedProjectVersion`, returns `projectVersion`, locks the project, rechecks assignment permission, and increments project.version once for an effective change. Product PATCH also requires its own expectedVersion; productId is immutable and not resent. No-op changes do not increment. CLIENT and CONSIGNEE are never substituted.
+
+Per the Phase 2 request, company/address/factory/approval/product/category master-data writes permit ADMIN and OPERATOR; VIEWER/REVIEWER are read-only. Shipment factory selection uses PROJECT_SETUP and shipment quantity edits use PACKING_LIST assignment; ADMIN can edit. Existing project creation remains reference-only and preserves its current permission contract.
 
 The migration adds transactional audit triggers to all new business tables and the existing immutable row trigger to approval references. `recorded_by` must be set from trusted session identity, never request JSON. Existing document-version snapshot/audit design is reused.
 
@@ -53,4 +57,4 @@ The migration adds transactional audit triggers to all new business tables and t
 
 `./mvnw -o ... test-compile` with Java 21 runtime and release-21 compiler passed at 2026-11-13 14:34. `docs/contracts/master-data-v1.yaml` parses as OpenAPI YAML (9 paths, 16 schemas after company/product additions), and `git diff --check` passes. V4 has not yet been applied to a database in this work session. Fresh-schema execution and upgrade-preserves-existing-row proof remain required on host PostgreSQL before migration acceptance.
 
-Agent 2 can implement the endpoints described by master-data-v1.yaml using this mapping. Agent 3 can generate types with its normal OpenAPI tool and integrate after the backend route permission semantics are agreed. Keep Angular files outside this database branch. No OCR or document-rendering engine is introduced.
+Agent 2 can implement against master-data-v1.yaml v1.1.0 using this mapping. Agent 3 can generate types with its normal OpenAPI tool. The contract's x-authorized-roles and role notes specify access; don't silently narrow operator master-data mutation to admin-only. Keep Angular files outside this database branch. No OCR or document-rendering engine is introduced.

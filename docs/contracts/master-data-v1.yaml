@@ -1,14 +1,14 @@
 openapi: 3.0.3
 info:
   title: SeaExport master data and shipment product links
-  version: 1.0.0
-  description: |-
-    Additive Phase 2 contract. Existing /api/projects JSON and applied V1-V3
-    migrations are unchanged. Company is the existing organization entity.
+  version: 1.1.0
+  description: Additive Phase 2 contract. Existing /api/projects v2 JSON and applied V1-V3 migrations remain unchanged.
+    Master-data changes preserve project/document versions. Project relationship mutations require the current expectedProjectVersion
+    and increment project.version exactly once for effective changes; no-ops do not increment.
 servers:
-  - url: http://localhost:8080
+- url: http://localhost:8080
 security:
-  - sessionAuth: []
+- sessionAuth: []
 paths:
   /api/countries:
     get:
@@ -21,37 +21,51 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Country' }
+                items:
+                  $ref: '#/components/schemas/Country'
   /api/countries/{countryCode}/cities:
     get:
       operationId: searchCities
       summary: Search active cities within a country
       parameters:
-        - in: path
-          name: countryCode
-          required: true
-          schema: { type: string, pattern: '^[A-Z]{2}$' }
-        - in: query
-          name: q
-          required: false
-          schema: { type: string, minLength: 1, maxLength: 200 }
-        - in: query
-          name: page
-          schema: { type: integer, minimum: 0, default: 0 }
-        - in: query
-          name: size
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      - in: path
+        name: countryCode
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Z]{2}$
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - in: query
+        name: size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
         '200':
           description: Country-scoped, name-ordered city page.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/CityPage' }
+              schema:
+                $ref: '#/components/schemas/CityPage'
   /api/organizations/{organizationId}/addresses:
     get:
       operationId: listCompanyAddresses
       parameters:
-        - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/OrganizationId'
       responses:
         '200':
           description: Structured addresses; legacy address_text is retained separately.
@@ -59,93 +73,125 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Address' }
+                items:
+                  $ref: '#/components/schemas/Address'
     post:
       operationId: createCompanyAddress
       parameters:
-        - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/OrganizationId'
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AddressWrite' }
+            schema:
+              $ref: '#/components/schemas/AddressWrite'
       responses:
         '201':
           description: Address created.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Address' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/factories:
     get:
       operationId: searchFactories
       parameters:
-        - in: query
-          name: companyId
-          schema: { type: string, format: uuid }
-        - in: query
-          name: q
-          schema: { type: string, minLength: 1, maxLength: 250 }
-        - in: query
-          name: page
-          schema: { type: integer, minimum: 0, default: 0 }
-        - in: query
-          name: size
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      - in: query
+        name: companyId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: q
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 250
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - in: query
+        name: size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
         '200':
           description: Searchable active factory page.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/FactoryPage' }
+              schema:
+                $ref: '#/components/schemas/FactoryPage'
     post:
       operationId: createFactory
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/FactoryWrite' }
+            schema:
+              $ref: '#/components/schemas/FactoryWrite'
       responses:
         '201':
           description: Factory created.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Factory' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/Factory'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/factories/{factoryId}:
     get:
       operationId: getFactory
-      parameters: [ { $ref: '#/components/parameters/FactoryId' } ]
+      parameters:
+      - $ref: '#/components/parameters/FactoryId'
       responses:
         '200':
           description: Factory metadata and current eligible approval.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Factory' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/Factory'
+        '404':
+          $ref: '#/components/responses/NotFound'
     patch:
       operationId: updateFactory
-      parameters: [ { $ref: '#/components/parameters/FactoryId' } ]
+      parameters:
+      - $ref: '#/components/parameters/FactoryId'
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/FactoryPatch' }
+            schema:
+              $ref: '#/components/schemas/FactoryPatch'
       responses:
         '200':
           description: Updated factory.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Factory' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+              schema:
+                $ref: '#/components/schemas/Factory'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/factories/{factoryId}/approvals:
     get:
       operationId: listFactoryApprovals
-      parameters: [ { $ref: '#/components/parameters/FactoryId' } ]
+      parameters:
+      - $ref: '#/components/parameters/FactoryId'
       responses:
         '200':
           description: Append-only approval reference history, newest first.
@@ -153,51 +199,96 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/FactoryApproval' }
+                items:
+                  $ref: '#/components/schemas/FactoryApproval'
     post:
       operationId: recordFactoryApproval
-      parameters: [ { $ref: '#/components/parameters/FactoryId' } ]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/FactoryApprovalWrite' }
-      responses:
-        '201':
-          description: Immutable approval revision recorded.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/FactoryApproval' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '409': { $ref: '#/components/responses/Conflict' }
-  /api/projects/{projectId}/factory:
-    put:
-      operationId: selectProjectFactory
-      parameters: [ { $ref: '#/components/parameters/ProjectId' } ]
+      parameters:
+      - $ref: '#/components/parameters/FactoryId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [expectedVersion, factoryId]
-              properties:
-                expectedVersion: { type: integer, minimum: 0, format: int64 }
-                factoryId: { type: string, format: uuid }
+              $ref: '#/components/schemas/FactoryApprovalWrite'
       responses:
-        '200':
-          description: Factory selected for shipment. Project revision incremented once.
+        '201':
+          description: Immutable approval revision recorded.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ProjectFactory' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+              schema:
+                $ref: '#/components/schemas/FactoryApproval'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/projects/{projectId}/factory:
+    parameters:
+    - &id006
+      in: path
+      name: projectId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getProjectFactory
+      responses:
+        '200':
+          description: Selected factory and approval snapshot source.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectFactory'
+        '404': &id001
+          description: Company, factory, city, product or project does not exist or is inaccessible.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+    put:
+      operationId: selectProjectFactory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectFactoryWrite'
+      responses:
+        '200':
+          description: Factory selected; shared project revision increments once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectFactory'
+        '400': &id003
+          description: Invalid field, shape, date, role, city/country or quantity.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '403': &id004
+          description: Account role, form grant or CSRF check failed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+        '404': *id001
+        '409': &id002
+          description: Stale project/entity version, duplicate approval namespace/reference, or approval revision
+            conflict.
+          content:
+            application/problem+json:
+              schema:
+                $ref: ./projects-v2.yaml#/components/schemas/Problem
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR with PROJECT_SETUP
   /api/projects/{projectId}/products:
     get:
       operationId: listProjectProducts
-      parameters: [ { $ref: '#/components/parameters/ProjectId' } ]
+      parameters:
+      - $ref: '#/components/parameters/ProjectId'
       responses:
         '200':
           description: Shipment-specific product selections and quantities.
@@ -205,48 +296,438 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/ProjectProduct' }
+                items:
+                  $ref: '#/components/schemas/ProjectProduct'
     post:
       operationId: addProjectProduct
-      parameters: [ { $ref: '#/components/parameters/ProjectId' } ]
+      parameters:
+      - $ref: '#/components/parameters/ProjectId'
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProjectProductWrite' }
+            schema:
+              $ref: '#/components/schemas/ProjectProductWrite'
       responses:
         '201':
-          description: Shipment product selection created.
+          description: Shipment product created; response includes shared projectVersion.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ProjectProduct' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/ProjectProduct'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR with PACKING_LIST permission
   /api/projects/{projectId}/products/{projectProductId}:
     patch:
       operationId: updateProjectProduct
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - in: path
-          name: projectProductId
-          required: true
-          schema: { type: string, format: uuid }
+      - $ref: '#/components/parameters/ProjectId'
+      - in: path
+        name: projectProductId
+        required: true
+        schema:
+          type: string
+          format: uuid
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ProjectProductPatch' }
+            schema:
+              $ref: '#/components/schemas/ProjectProductPatch'
       responses:
         '200':
-          description: Shipment product selection updated.
+          description: Shipment product updated; response includes shared projectVersion.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ProjectProduct' }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+              schema:
+                $ref: '#/components/schemas/ProjectProduct'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR with PACKING_LIST permission
+  /api/organizations:
+    get:
+      operationId: listCompanies
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 250
+      - in: query
+        name: role
+        schema:
+          $ref: '#/components/schemas/CompanyRole'
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - in: query
+        name: size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: Search and role-filter companies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyPage'
+        '401': *id003
+        '403': *id004
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+    post:
+      operationId: createCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyWrite'
+      responses:
+        '201':
+          description: Company created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '400': *id003
+        '401': *id003
+        '403': *id004
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/organizations/{organizationId}:
+    parameters:
+    - &id005
+      in: path
+      name: organizationId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getCompany
+      responses:
+        '200':
+          description: Company with structured addresses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '404': *id001
+    patch:
+      operationId: updateCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyPatch'
+      responses:
+        '200':
+          description: Company updated with optimistic version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '400': *id003
+        '403': *id004
+        '404': *id001
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/products:
+    get:
+      operationId: listProducts
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 250
+      - in: query
+        name: categoryId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - in: query
+        name: size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: Search products and category filters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '401': *id003
+        '403': *id004
+    post:
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductWrite'
+      responses:
+        '201':
+          description: Product created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400': *id003
+        '403': *id004
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/products/{productId}:
+    parameters:
+    - in: path
+      name: productId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getProduct
+      responses:
+        '200':
+          description: Product details, taxonomy categories and packing grades.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404': *id001
+    patch:
+      operationId: updateProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPatch'
+      responses:
+        '200':
+          description: Product updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400': *id003
+        '403': *id004
+        '404': *id001
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/product-taxonomy-categories:
+    get:
+      operationId: listProductTaxonomyCategories
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - in: query
+        name: size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: Configurable product taxonomy categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTaxonomyCategoryPage'
+    post:
+      operationId: createProductTaxonomyCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductTaxonomyCategoryWrite'
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTaxonomyCategory'
+        '400': *id003
+        '403': *id004
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/product-taxonomy-categories/{categoryId}:
+    parameters:
+    - in: path
+      name: categoryId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    patch:
+      operationId: updateProductTaxonomyCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductTaxonomyCategoryPatch'
+      responses:
+        '200':
+          description: Category updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTaxonomyCategory'
+        '400': *id003
+        '403': *id004
+        '404': *id001
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/products/{productId}/taxonomy-categories:
+    parameters:
+    - in: path
+      name: productId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: listProductCategoryAssignments
+      responses:
+        '200':
+          description: Product taxonomy assignments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductTaxonomyCategory'
+    put:
+      operationId: replaceProductCategoryAssignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - expectedProductVersion
+              - categoryIds
+              properties:
+                expectedProductVersion:
+                  type: integer
+                  minimum: 0
+                  format: int64
+                categoryIds:
+                  type: array
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Assignments replaced atomically.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductTaxonomyCategory'
+        '400': *id003
+        '403': *id004
+        '404': *id001
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
+  /api/organizations/{organizationId}/addresses/{addressId}:
+    parameters:
+    - *id005
+    - in: path
+      name: addressId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    patch:
+      operationId: updateCompanyAddress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressPatch'
+      responses:
+        '200':
+          description: Address updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+        '400': *id003
+        '403': *id004
+        '404': *id001
+        '409': *id002
+      x-authorized-roles:
+      - ADMIN
+      - OPERATOR
 components:
   securitySchemes:
     sessionAuth:
@@ -254,238 +735,869 @@ components:
       in: cookie
       name: JSESSIONID
   parameters:
-    OrganizationId:
-      in: path
-      name: organizationId
-      required: true
-      schema: { type: string, format: uuid }
+    OrganizationId: *id005
     FactoryId:
       in: path
       name: factoryId
       required: true
-      schema: { type: string, format: uuid }
-    ProjectId:
-      in: path
-      name: projectId
-      required: true
-      schema: { type: string, format: uuid }
+      schema:
+        type: string
+        format: uuid
+    ProjectId: *id006
   responses:
-    InvalidRequest:
-      description: Invalid field, shape, date, role, city/country or quantity.
-      content:
-        application/problem+json:
-          schema: { $ref: ./projects-v2.yaml#/components/schemas/Problem }
-    Forbidden:
-      description: Account role, form grant or CSRF check failed.
-      content:
-        application/problem+json:
-          schema: { $ref: ./projects-v2.yaml#/components/schemas/Problem }
-    NotFound:
-      description: Company, factory, city, product or project does not exist or is inaccessible.
-      content:
-        application/problem+json:
-          schema: { $ref: ./projects-v2.yaml#/components/schemas/Problem }
-    Conflict:
-      description: Stale project/entity version, duplicate approval namespace/reference, or approval revision conflict.
-      content:
-        application/problem+json:
-          schema: { $ref: ./projects-v2.yaml#/components/schemas/Problem }
+    InvalidRequest: *id003
+    Forbidden: *id004
+    NotFound: *id001
+    Conflict: *id002
   schemas:
     Country:
       type: object
-      required: [code, name]
+      required:
+      - code
+      - name
       properties:
-        code: { type: string, pattern: '^[A-Z]{2}$', description: ISO 3166-1 alpha-2 }
-        name: { type: string }
+        code:
+          type: string
+          pattern: ^[A-Z]{2}$
+          description: ISO 3166-1 alpha-2
+        name:
+          type: string
     City:
       type: object
-      required: [id, countryCode, name, active]
+      required:
+      - id
+      - countryCode
+      - name
+      - active
       properties:
-        id: { type: string, format: uuid }
-        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
-        name: { type: string, maxLength: 200 }
-        active: { type: boolean }
+        id:
+          type: string
+          format: uuid
+        countryCode:
+          type: string
+          pattern: ^[A-Z]{2}$
+        name:
+          type: string
+          maxLength: 200
+        active:
+          type: boolean
     CityPage:
       type: object
-      required: [items, page, size, totalElements, totalPages]
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
       properties:
-        items: { type: array, items: { $ref: '#/components/schemas/City' } }
-        page: { type: integer }
-        size: { type: integer }
-        totalElements: { type: integer, format: int64 }
-        totalPages: { type: integer }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/City'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
     Address:
       type: object
-      required: [id, organizationId, kind, countryCode, cityId, manualCity, addressLine1, addressLine2, postalCode, active, version]
+      required:
+      - id
+      - organizationId
+      - kind
+      - countryCode
+      - cityId
+      - manualCity
+      - addressLine1
+      - addressLine2
+      - postalCode
+      - active
+      - version
       properties:
-        id: { type: string, format: uuid }
-        organizationId: { type: string, format: uuid }
-        kind: { type: string, enum: [BUSINESS, FACTORY, BILLING, OTHER] }
-        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
-        cityId: { type: string, format: uuid, nullable: true }
-        manualCity: { type: string, maxLength: 200, nullable: true }
-        addressLine1: { type: string, maxLength: 250 }
-        addressLine2: { type: string, maxLength: 250, nullable: true }
-        postalCode: { type: string, maxLength: 40, nullable: true }
-        active: { type: boolean }
-        version: { type: integer, format: int64 }
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - BUSINESS
+          - FACTORY
+          - BILLING
+          - OTHER
+        countryCode:
+          type: string
+          pattern: ^[A-Z]{2}$
+        cityId:
+          type: string
+          format: uuid
+          nullable: true
+        manualCity:
+          type: string
+          maxLength: 200
+          nullable: true
+        addressLine1:
+          type: string
+          maxLength: 250
+        addressLine2:
+          type: string
+          maxLength: 250
+          nullable: true
+        postalCode:
+          type: string
+          maxLength: 40
+          nullable: true
+        active:
+          type: boolean
+        version:
+          type: integer
+          format: int64
     AddressWrite:
       type: object
-      required: [kind, countryCode, addressLine1]
+      required:
+      - kind
+      - countryCode
+      - addressLine1
       properties:
-        kind: { type: string, enum: [BUSINESS, FACTORY, BILLING, OTHER] }
-        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
-        cityId: { type: string, format: uuid, nullable: true }
-        manualCity: { type: string, maxLength: 200, nullable: true }
-        addressLine1: { type: string, maxLength: 250 }
-        addressLine2: { type: string, maxLength: 250, nullable: true }
-        postalCode: { type: string, maxLength: 40, nullable: true }
-        expectedOrganizationVersion: { type: integer, minimum: 0, format: int64 }
+        kind: &id038
+          type: string
+          enum:
+          - BUSINESS
+          - FACTORY
+          - BILLING
+          - OTHER
+        countryCode: &id039
+          type: string
+          pattern: ^[A-Z]{2}$
+        cityId: &id040
+          type: string
+          format: uuid
+          nullable: true
+        manualCity: &id041
+          type: string
+          maxLength: 200
+          nullable: true
+        addressLine1: &id042
+          type: string
+          maxLength: 250
+        addressLine2: &id043
+          type: string
+          maxLength: 250
+          nullable: true
+        postalCode: &id044
+          type: string
+          maxLength: 40
+          nullable: true
+        expectedOrganizationVersion:
+          type: integer
+          minimum: 0
+          format: int64
     Company:
       type: object
-      required: [id, version, legalName, tradeName, registrationNumber, taxIdentifier, email, phone, roles, active]
+      required:
+      - id
+      - version
+      - legalName
+      - tradeName
+      - registrationNumber
+      - taxIdentifier
+      - email
+      - phone
+      - roles
+      - addresses
+      - active
       properties:
-        id: { type: string, format: uuid }
-        version: { type: integer, format: int64 }
-        legalName: { type: string, maxLength: 250 }
-        tradeName: { type: string, maxLength: 250, nullable: true }
-        registrationNumber: { type: string, maxLength: 100, nullable: true }
-        taxIdentifier: { type: string, maxLength: 100, nullable: true }
-        email: { type: string, format: email, maxLength: 254, nullable: true }
-        phone: { type: string, maxLength: 50, nullable: true }
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+        legalName:
+          type: string
+          maxLength: 250
+        tradeName:
+          type: string
+          maxLength: 250
+          nullable: true
+        registrationNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+        taxIdentifier:
+          type: string
+          maxLength: 100
+          nullable: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          nullable: true
+        phone:
+          type: string
+          maxLength: 50
+          nullable: true
         roles:
           type: array
           uniqueItems: true
-          items: { type: string, enum: [EXPORTER, CLIENT, BUYER, CONSIGNEE, PRODUCER, SUPPLIER, FREIGHT_FORWARDER, NOTIFY_PARTY, SHIPPING_LINE, CARRIER, AUTHORITY, IMPORTER] }
-        addresses: { type: array, items: { $ref: '#/components/schemas/Address' } }
-        active: { type: boolean }
+          items:
+            type: string
+            enum:
+            - EXPORTER
+            - CLIENT
+            - BUYER
+            - CONSIGNEE
+            - PRODUCER
+            - SUPPLIER
+            - FREIGHT_FORWARDER
+            - NOTIFY_PARTY
+            - SHIPPING_LINE
+            - CARRIER
+            - AUTHORITY
+            - IMPORTER
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        active:
+          type: boolean
     Product:
       type: object
-      required: [id, version, code, commercialName, scientificName, hsCode, description, processingMethod, storageRequirements, defaultMeasurementUnit, categories, active]
+      required:
+      - id
+      - version
+      - code
+      - commercialName
+      - scientificName
+      - hsCode
+      - description
+      - processingMethod
+      - storageRequirements
+      - defaultMeasurementUnit
+      - categories
+      - active
       properties:
-        id: { type: string, format: uuid }
-        version: { type: integer, format: int64 }
-        code: { type: string, maxLength: 80 }
-        commercialName: { type: string, maxLength: 250 }
-        scientificName: { type: string, maxLength: 250, nullable: true }
-        hsCode: { type: string, pattern: '^[0-9]{6,10}$', nullable: true }
-        description: { type: string, nullable: true }
-        processingMethod: { type: string, maxLength: 150, nullable: true }
-        storageRequirements: { type: string, maxLength: 500, nullable: true }
-        defaultMeasurementUnit: { type: string, maxLength: 30 }
-        categories: { type: array, items: { $ref: '#/components/schemas/ProductTaxonomyCategory' } }
-        grades: { type: array, items: { $ref: '#/components/schemas/ProductGrade' } }
-        active: { type: boolean }
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+        code:
+          type: string
+          maxLength: 80
+        commercialName:
+          type: string
+          maxLength: 250
+        scientificName:
+          type: string
+          maxLength: 250
+          nullable: true
+        hsCode:
+          type: string
+          pattern: ^[0-9]{6,10}$
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        processingMethod:
+          type: string
+          maxLength: 150
+          nullable: true
+        storageRequirements:
+          type: string
+          maxLength: 500
+          nullable: true
+        defaultMeasurementUnit:
+          type: string
+          maxLength: 30
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductTaxonomyCategory'
+        grades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductGrade'
+        active:
+          type: boolean
     ProductTaxonomyCategory:
       type: object
-      required: [id, code, name, active, version]
+      required:
+      - id
+      - code
+      - name
+      - active
+      - version
       properties:
-        id: { type: string, format: uuid }
-        code: { type: string, maxLength: 80 }
-        name: { type: string, maxLength: 200 }
-        description: { type: string, maxLength: 500, nullable: true }
-        active: { type: boolean }
-        version: { type: integer, format: int64 }
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 80
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        active:
+          type: boolean
+        version:
+          type: integer
+          format: int64
     ProductGrade:
       description: Existing per-product configurable product_category used by packing grades.
       allOf:
-        - $ref: ./commercial-setup-v1.yaml#/components/schemas/GradeResponse
+      - $ref: ./commercial-setup-v1.yaml#/components/schemas/GradeResponse
     Factory:
       type: object
-      required: [id, companyId, name, addressId, establishmentDetails, active, version, currentApproval]
+      required:
+      - id
+      - companyId
+      - name
+      - addressId
+      - establishmentDetails
+      - active
+      - version
+      - currentApproval
       properties:
-        id: { type: string, format: uuid }
-        companyId: { type: string, format: uuid }
-        name: { type: string, maxLength: 250 }
-        addressId: { type: string, format: uuid, nullable: true }
-        establishmentDetails: { type: string, nullable: true }
-        active: { type: boolean }
-        version: { type: integer, format: int64 }
-        currentApproval: { allOf: [ { $ref: '#/components/schemas/FactoryApproval' } ], nullable: true }
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 250
+        addressId:
+          type: string
+          format: uuid
+          nullable: true
+        establishmentDetails:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+        currentApproval:
+          allOf:
+          - $ref: '#/components/schemas/FactoryApproval'
+          nullable: true
     FactoryPage:
       type: object
-      required: [items, page, size, totalElements, totalPages]
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
       properties:
-        items: { type: array, items: { $ref: '#/components/schemas/Factory' } }
-        page: { type: integer }
-        size: { type: integer }
-        totalElements: { type: integer, format: int64 }
-        totalPages: { type: integer }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Factory'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
     FactoryWrite:
       type: object
-      required: [companyId, name]
+      required:
+      - companyId
+      - name
       properties:
-        companyId: { type: string, format: uuid }
-        name: { type: string, maxLength: 250 }
-        addressId: { type: string, format: uuid, nullable: true }
-        establishmentDetails: { type: string, nullable: true }
+        companyId:
+          type: string
+          format: uuid
+        name: &id007
+          type: string
+          maxLength: 250
+        addressId: &id008
+          type: string
+          format: uuid
+          nullable: true
+        establishmentDetails: &id009
+          type: string
+          nullable: true
     FactoryPatch:
-      allOf:
-        - $ref: '#/components/schemas/FactoryWrite'
-        - type: object
-          required: [expectedVersion]
-          properties:
-            expectedVersion: { type: integer, minimum: 0, format: int64 }
+      type: object
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        name: *id007
+        addressId: *id008
+        establishmentDetails: *id009
+        active:
+          type: boolean
     FactoryApproval:
       type: object
-      required: [id, factoryId, issuingAuthority, numberingSystem, issuingCountryCode, approvalReference, validFrom, validUntil, recordedAt, recordedBy]
+      required:
+      - id
+      - factoryId
+      - issuingAuthority
+      - numberingSystem
+      - issuingCountryCode
+      - approvalReference
+      - validFrom
+      - validUntil
+      - recordedAt
+      - recordedBy
       properties:
-        id: { type: string, format: uuid }
-        factoryId: { type: string, format: uuid }
-        issuingAuthority: { type: string, maxLength: 250 }
-        numberingSystem: { type: string, maxLength: 120 }
-        issuingCountryCode: { type: string, pattern: '^[A-Z]{2}$' }
-        approvalReference: { type: string, maxLength: 150 }
-        validFrom: { type: string, format: date, nullable: true }
-        validUntil: { type: string, format: date, nullable: true }
-        recordedAt: { type: string, format: date-time }
-        recordedBy: { type: string, format: uuid, nullable: true }
+        id:
+          type: string
+          format: uuid
+        factoryId:
+          type: string
+          format: uuid
+        issuingAuthority:
+          type: string
+          maxLength: 250
+        numberingSystem:
+          type: string
+          maxLength: 120
+        issuingCountryCode:
+          type: string
+          pattern: ^[A-Z]{2}$
+        approvalReference:
+          type: string
+          maxLength: 150
+        validFrom:
+          type: string
+          format: date
+          nullable: true
+        validUntil:
+          type: string
+          format: date
+          nullable: true
+        recordedAt:
+          type: string
+          format: date-time
+        recordedBy:
+          type: string
+          format: uuid
+          nullable: true
     FactoryApprovalWrite:
       type: object
-      required: [issuingAuthority, numberingSystem, issuingCountryCode, approvalReference]
+      required:
+      - issuingAuthority
+      - numberingSystem
+      - issuingCountryCode
+      - approvalReference
       properties:
-        issuingAuthority: { type: string, maxLength: 250 }
-        numberingSystem: { type: string, maxLength: 120 }
-        issuingCountryCode: { type: string, pattern: '^[A-Z]{2}$' }
-        approvalReference: { type: string, maxLength: 150 }
-        validFrom: { type: string, format: date, nullable: true }
-        validUntil: { type: string, format: date, nullable: true }
+        issuingAuthority:
+          type: string
+          maxLength: 250
+        numberingSystem:
+          type: string
+          maxLength: 120
+        issuingCountryCode:
+          type: string
+          pattern: ^[A-Z]{2}$
+        approvalReference:
+          type: string
+          maxLength: 150
+        validFrom:
+          type: string
+          format: date
+          nullable: true
+        validUntil:
+          type: string
+          format: date
+          nullable: true
     ProjectFactory:
       type: object
-      required: [projectId, projectVersion, factoryId, producerCompanyId, approval]
+      required:
+      - projectId
+      - projectVersion
+      - factoryId
+      - producerCompanyId
+      - approval
       properties:
-        projectId: { type: string, format: uuid }
-        projectVersion: { type: integer, format: int64 }
-        factoryId: { type: string, format: uuid }
-        producerCompanyId: { type: string, format: uuid }
-        approval: { allOf: [ { $ref: '#/components/schemas/FactoryApproval' } ], nullable: true }
+        projectId:
+          type: string
+          format: uuid
+        projectVersion:
+          type: integer
+          format: int64
+        factoryId:
+          type: string
+          format: uuid
+        producerCompanyId:
+          type: string
+          format: uuid
+        approval:
+          allOf:
+          - $ref: '#/components/schemas/FactoryApproval'
+          nullable: true
     ProjectProduct:
       allOf:
-        - $ref: '#/components/schemas/ProjectProductWrite'
-        - type: object
-          required: [id, version]
-          properties:
-            id: { type: string, format: uuid }
-            version: { type: integer, format: int64 }
+      - $ref: '#/components/schemas/ProjectProductWrite'
+      - type: object
+        required:
+        - id
+        - version
+        - projectVersion
+        properties:
+          id:
+            type: string
+            format: uuid
+          version:
+            type: integer
+            format: int64
+          projectVersion:
+            type: integer
+            format: int64
     ProjectProductWrite:
       type: object
-      required: [productId]
+      required:
+      - productId
+      - expectedProjectVersion
       properties:
-        productId: { type: string, format: uuid }
-        productCategoryId: { type: string, format: uuid, nullable: true }
-        cartonCount: { type: integer, minimum: 1, nullable: true }
-        quantity: { type: string, pattern: '^[0-9]{1,15}(\\.[0-9]{1,3})?$', nullable: true }
-        quantityUnit: { type: string, maxLength: 30, nullable: true }
-        netWeightKg: { type: string, pattern: '^[0-9]{1,15}(\\.[0-9]{1,3})?$', nullable: true }
-        grossWeightKg: { type: string, pattern: '^[0-9]{1,15}(\\.[0-9]{1,3})?$', nullable: true }
-        unitPrice: { type: string, pattern: '^[0-9]{1,14}(\\.[0-9]{1,4})?$', nullable: true }
-        currency: { type: string, pattern: '^[A-Z]{3}$', nullable: true }
-        lotReference: { type: string, maxLength: 150, nullable: true }
-        processingInformation: { type: string, nullable: true }
+        productId:
+          type: string
+          format: uuid
+        productCategoryId: &id010
+          type: string
+          format: uuid
+          nullable: true
+        cartonCount: &id011
+          type: integer
+          minimum: 1
+          nullable: true
+        quantity: &id012
+          type: string
+          pattern: ^[0-9]{1,15}(\\.[0-9]{1,3})?$
+          nullable: true
+        quantityUnit: &id013
+          type: string
+          maxLength: 30
+          nullable: true
+        netWeightKg: &id014
+          type: string
+          pattern: ^[0-9]{1,15}(\\.[0-9]{1,3})?$
+          nullable: true
+        grossWeightKg: &id015
+          type: string
+          pattern: ^[0-9]{1,15}(\\.[0-9]{1,3})?$
+          nullable: true
+        unitPrice: &id016
+          type: string
+          pattern: ^[0-9]{1,14}(\\.[0-9]{1,4})?$
+          nullable: true
+        currency: &id017
+          type: string
+          pattern: ^[A-Z]{3}$
+          nullable: true
+        lotReference: &id018
+          type: string
+          maxLength: 150
+          nullable: true
+        processingInformation: &id019
+          type: string
+          nullable: true
+        expectedProjectVersion:
+          type: integer
+          minimum: 0
+          format: int64
     ProjectProductPatch:
-      allOf:
-        - $ref: '#/components/schemas/ProjectProductWrite'
-        - type: object
-          required: [expectedVersion]
-          properties:
-            expectedVersion: { type: integer, minimum: 0, format: int64 }
+      type: object
+      required:
+      - expectedVersion
+      - expectedProjectVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        expectedProjectVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        productCategoryId: *id010
+        cartonCount: *id011
+        quantity: *id012
+        quantityUnit: *id013
+        netWeightKg: *id014
+        grossWeightKg: *id015
+        unitPrice: *id016
+        currency: *id017
+        lotReference: *id018
+        processingInformation: *id019
+    CompanyWrite:
+      type: object
+      required:
+      - legalName
+      - roles
+      properties:
+        legalName: &id020
+          type: string
+          maxLength: 250
+        tradeName: &id021
+          type: string
+          maxLength: 250
+          nullable: true
+        registrationNumber: &id022
+          type: string
+          maxLength: 100
+          nullable: true
+        taxIdentifier: &id023
+          type: string
+          maxLength: 100
+          nullable: true
+        email: &id024
+          type: string
+          format: email
+          maxLength: 254
+          nullable: true
+        phone: &id025
+          type: string
+          maxLength: 50
+          nullable: true
+        roles: &id026
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/CompanyRole'
+    CompanyRole:
+      type: string
+      enum:
+      - EXPORTER
+      - CLIENT
+      - BUYER
+      - CONSIGNEE
+      - PRODUCER
+      - SUPPLIER
+      - FREIGHT_FORWARDER
+      - NOTIFY_PARTY
+      - SHIPPING_LINE
+      - CARRIER
+      - AUTHORITY
+      - IMPORTER
+    CompanyPatch:
+      type: object
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        legalName: *id020
+        tradeName: *id021
+        registrationNumber: *id022
+        taxIdentifier: *id023
+        email: *id024
+        phone: *id025
+        roles: *id026
+        active:
+          type: boolean
+    CompanyPage:
+      type: object
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Company'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+    ProductWrite:
+      type: object
+      required:
+      - code
+      - commercialName
+      properties:
+        code: &id027
+          type: string
+          maxLength: 80
+        commercialName: &id028
+          type: string
+          maxLength: 250
+        scientificName: &id029
+          type: string
+          maxLength: 250
+          nullable: true
+        hsCode: &id030
+          type: string
+          pattern: ^[0-9]{6,10}$
+          nullable: true
+        description: &id031
+          type: string
+          nullable: true
+        processingMethod: &id032
+          type: string
+          maxLength: 150
+          nullable: true
+        storageRequirements: &id033
+          type: string
+          maxLength: 500
+          nullable: true
+        defaultMeasurementUnit: &id034
+          type: string
+          maxLength: 30
+    ProductPatch:
+      type: object
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        code: *id027
+        commercialName: *id028
+        scientificName: *id029
+        hsCode: *id030
+        description: *id031
+        processingMethod: *id032
+        storageRequirements: *id033
+        defaultMeasurementUnit: *id034
+        active:
+          type: boolean
+    ProductPage:
+      type: object
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+    ProductTaxonomyCategoryWrite:
+      type: object
+      required:
+      - code
+      - name
+      properties:
+        code: &id035
+          type: string
+          maxLength: 80
+        name: &id036
+          type: string
+          maxLength: 200
+        description: &id037
+          type: string
+          maxLength: 500
+          nullable: true
+    ProductTaxonomyCategoryPatch:
+      type: object
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        code: *id035
+        name: *id036
+        description: *id037
+    ProductTaxonomyCategoryPage:
+      type: object
+      required:
+      - items
+      - page
+      - size
+      - totalElements
+      - totalPages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductTaxonomyCategory'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+    ProductTaxonomyAssignment:
+      type: object
+      required:
+      - productId
+      - categoryId
+      properties:
+        productId:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+    ProjectFactoryWrite:
+      type: object
+      required:
+      - expectedProjectVersion
+      - factoryId
+      properties:
+        expectedProjectVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        factoryId:
+          type: string
+          format: uuid
+    AddressPatch:
+      type: object
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+          format: int64
+        kind: *id038
+        countryCode: *id039
+        cityId: *id040
+        manualCity: *id041
+        addressLine1: *id042
+        addressLine2: *id043
+        postalCode: *id044
