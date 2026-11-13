@@ -30,7 +30,7 @@ UUID identifiers are opaque. Weights use numeric(18,3) kg; no floating-point mas
 
 Spring Boot 3 stays within the repository's agreed major version; 3.5.16 is pinned using the [official 3.5 documentation](https://docs.spring.io/spring-boot/3.5/system-requirements.html). Java target is 21. Flyway includes its [PostgreSQL module](https://documentation.red-gate.com/flyway/reference/database-driver-reference/postgresql-database). Maven's Boot parent manages dependency versions, including Testcontainers. The historical V1/V2 host Maven verify run passed: compilation for Java 21, generated mappings, packaging, 17 unit tests and 77 real PostgreSQL integration tests were verified. New commercial acceptance is tracked separately above. See VALIDATION.md and `../../backend/VERIFICATION-RECHECK-2026-11-12.md`. Review support/security patch policy before production deployment.
 
-## The 26 tables and why they exist
+## Existing 26 tables and Phase 2 additions
 
 | Module | Tables | Purpose and important links |
 |---|---|---|
@@ -70,6 +70,9 @@ erDiagram
 
 All shipment-scoped child links use composite (entity_id, project_id) foreign keys when referencing another project-owned entity. A lot in project A cannot feed a batch in project B; a finished quantity cannot reference another shipment's container. Product/category pairing is also enforced with a composite foreign key. Master data is deliberately shared.
 
+## Phase 2 master-data tables (V4 draft)
+
+V4 adds nine tables: `country` (complete ISO alpha-2 reference), `city`, `organization_address`, `factory`, append-only `factory_approval`, `product_taxonomy_category`, `product_taxonomy_assignment`, `project_factory`, and `project_product`. It adds contact/description fields to existing `organization`/`product` and adds `CARRIER` to the existing organization-role constraint. Existing `product_category` remains the per-product box-size grade; taxonomy categories are separate to avoid changing packing semantics. Existing `project_party` remains authoritative for client, consignee, exporter, producer, notify, forwarder and carrier roles; project_factory references its producer company and validates that it owns the selected factory. Existing `document_version.snapshot_json` remains the immutable legal-data snapshot. No legacy address text is deleted or auto-converted. V4 is additive and its PostgreSQL execution/upgrade preservation still requires host validation. Full mapping: `../../backend/PHASE2-MASTER-DATA-HANDOFF.md`.
 ## Enforced boundaries and deferred rules
 
 Database checks enforce normalized unique project references including archived projects, status vocabulary, role-qualified parties, nonnegative revision, positive quantities/cartons, gross >= finished net where gross is supplied, basic date ordering within catch/production records, unique container numbers per shipment, and foreign-key integrity. Unknown container numbers may remain null. Container syntax uses the ISO shape; ISO 6346 **check digit** validation remains Agent 2/future transport validation work, not an implemented database guarantee. Country/HS/UN/LOCODE checks validate shape; active official code lists remain application validation.
