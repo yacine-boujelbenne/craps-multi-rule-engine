@@ -1,0 +1,317 @@
+<app-page-header
+  title="Companies"
+  subtitle="Directory of exporters, suppliers, clients, importers, consignees and other parties. One company may hold several roles."
+>
+  @if (mode() === 'list') {
+    <button type="button" class="btn btn--primary" (click)="startCreate()">
+      <app-icon name="plus" [size]="18" />
+      New company
+    </button>
+  } @else {
+    <button type="button" class="btn btn--ghost" (click)="cancel()">
+      <app-icon name="arrow-left" [size]="18" />
+      Back to companies
+    </button>
+  }
+</app-page-header>
+
+@if (error()) {
+  <div class="alert alert--error" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ error() }}</span>
+  </div>
+}
+
+@if (mode() === 'create') {
+  <app-panel title="New company" subtitle="Roles marked with * are required to be set on save.">
+    <form class="company-form" [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate>
+      <div class="company-form__grid">
+        <label class="field">
+          <span class="field__label">Legal name <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="legalName"
+            [attr.maxlength]="legalNameMaxLength"
+            autocomplete="organization"
+          />
+          @if (showError('legalName', 'create')) {
+            <span class="field__error">Enter the legal company name.</span>
+          }
+        </label>
+
+        <div class="field">
+          <span class="field__label">Country</span>
+          <app-country-select formControlName="countryCode" [emptyLabel]="'None'" />
+          <span class="field__hint">Optional ISO 3166-1 alpha-2 country.</span>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Registration number</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="registrationNumber"
+            [attr.maxlength]="registrationMaxLength"
+          />
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field__label">Address</span>
+        <textarea
+          class="control"
+          rows="3"
+          formControlName="addressText"
+          [attr.maxlength]="addressMaxLength"
+        ></textarea>
+      </label>
+
+      <fieldset class="roles" formGroupName="roles">
+        <legend class="roles__legend">Roles <span class="req">*</span></legend>
+        @for (role of roles; track role) {
+          <label class="role-option">
+            <input type="checkbox" [formControlName]="role" />
+            <span class="role-option__body">
+              <span class="role-option__label">{{ roleLabel(role) }}</span>
+              <span class="role-option__desc">{{ roleDescriptions[role] }}</span>
+            </span>
+          </label>
+        }
+        @if (showRolesError('create')) {
+          <span class="field__error" role="alert">Select at least one role.</span>
+        }
+      </fieldset>
+
+      <div class="company-form__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+          {{ submitting() ? 'Creating…' : 'Create company' }}
+        </button>
+      </div>
+    </form>
+  </app-panel>
+} @else if (mode() === 'edit') {
+  <app-panel
+    [title]="'Edit ' + (selected()?.legalName ?? '')"
+    subtitle="Changes require the current company version."
+  >
+    <form class="company-form" [formGroup]="editForm" (ngSubmit)="submitEdit()" novalidate>
+      <div class="company-form__grid">
+        <label class="field">
+          <span class="field__label">Legal name <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="legalName"
+            [attr.maxlength]="legalNameMaxLength"
+          />
+          @if (showError('legalName', 'edit')) {
+            <span class="field__error">Enter the legal company name.</span>
+          }
+        </label>
+
+        <div class="field">
+          <span class="field__label">Country</span>
+          <app-country-select formControlName="countryCode" [emptyLabel]="'None'" />
+        </div>
+
+        <label class="field">
+          <span class="field__label">Registration number</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="registrationNumber"
+            [attr.maxlength]="registrationMaxLength"
+          />
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field__label">Address</span>
+        <textarea
+          class="control"
+          rows="3"
+          formControlName="addressText"
+          [attr.maxlength]="addressMaxLength"
+        ></textarea>
+      </label>
+
+      <label class="toggle">
+        <input type="checkbox" formControlName="active" />
+        <span>Company active</span>
+      </label>
+
+      <fieldset class="roles" formGroupName="roles">
+        <legend class="roles__legend">Roles <span class="req">*</span></legend>
+        @for (role of roles; track role) {
+          <label class="role-option">
+            <input type="checkbox" [formControlName]="role" />
+            <span class="role-option__body">
+              <span class="role-option__label">{{ roleLabel(role) }}</span>
+              <span class="role-option__desc">{{ roleDescriptions[role] }}</span>
+            </span>
+          </label>
+        }
+        @if (showRolesError('edit')) {
+          <span class="field__error" role="alert">Select at least one role.</span>
+        }
+      </fieldset>
+
+      <div class="company-form__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+          {{ submitting() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </form>
+  </app-panel>
+} @else {
+  <div class="filters">
+    <div class="filters__search">
+      <app-icon name="search" [size]="16" />
+      <input
+        type="search"
+        placeholder="Search by company name…"
+        autocomplete="off"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </div>
+
+    <label class="filters__field">
+      <span class="field__label">Role</span>
+      <select class="control" (change)="onRoleFilterChange($any($event.target).value)">
+        <option value="">All roles</option>
+        @for (role of roles; track role) {
+          <option [value]="role">{{ roleLabel(role) }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="filters__toggle">
+      <input
+        type="checkbox"
+        [checked]="includeInactive()"
+        (change)="onIncludeInactiveChange($any($event.target).checked)"
+      />
+      <span>Include inactive</span>
+    </label>
+  </div>
+
+  @if (loading()) {
+    <div class="table-card" aria-busy="true" aria-label="Loading companies">
+      <div class="skeleton-table">
+        @for (row of [1, 2, 3, 4]; track row) {
+          <div class="skeleton-row">
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--sm"></span>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="table-card">
+      <table class="company-table">
+        <caption class="sr-only">
+          Company directory
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Company</th>
+            <th scope="col">Country</th>
+            <th scope="col">Roles</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (organization of page().items; track organization.id) {
+            <tr>
+              <td data-label="Company">
+                <span class="company-name">{{ organization.legalName }}</span>
+                @if (organization.registrationNumber) {
+                  <span class="company-reg mono">{{ organization.registrationNumber }}</span>
+                }
+              </td>
+              <td data-label="Country">
+                @if (organization.countryCode) {
+                  <span class="mono">{{ organization.countryCode }}</span>
+                } @else {
+                  —
+                }
+              </td>
+              <td data-label="Roles">
+                <span class="role-tags">
+                  @for (role of organization.roles; track role) {
+                    <span class="tag">{{ roleLabel(role) }}</span>
+                  } @empty {
+                    <span class="role-tags__none">No roles</span>
+                  }
+                </span>
+              </td>
+              <td data-label="Status">
+                @if (organization.active) {
+                  <app-status-badge label="Active" tone="success" />
+                } @else {
+                  <app-status-badge label="Inactive" tone="neutral" />
+                }
+              </td>
+              <td data-label="Actions" class="col-actions">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="btn btn--subtle btn--sm"
+                    (click)="startEdit(organization)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn--ghost btn--sm"
+                    (click)="toggleActive(organization)"
+                  >
+                    {{ organization.active ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-cell">No companies found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      @if (page().totalPages > 1) {
+        <nav class="pagination" aria-label="Pagination">
+          <span class="pagination__summary">
+            Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ page().totalElements }}
+          </span>
+          <div class="pagination__controls">
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="page().page === 0 || loading()"
+              (click)="goToPage(page().page - 1)"
+            >
+              Previous
+            </button>
+            <span class="pagination__page"
+              >Page {{ page().page + 1 }} of {{ page().totalPages }}</span
+            >
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="page().page >= page().totalPages - 1 || loading()"
+              (click)="goToPage(page().page + 1)"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
+      }
+    </div>
+  }
+}

@@ -7,17 +7,11 @@
  * Never place real customer data in the repository.
  */
 
-export type OrganizationRole =
-  | 'EXPORTER'
-  | 'PRODUCER'
-  | 'SUPPLIER'
-  | 'BUYER'
-  | 'CONSIGNEE'
-  | 'NOTIFY_PARTY'
-  | 'FREIGHT_FORWARDER'
-  | 'SHIPPING_LINE'
-  | 'AUTHORITY';
+import type { OrganizationRole } from './commercial.model';
 
+export type { OrganizationRole };
+
+/** Lightweight organization projection used by directory lookups/selectors. */
 export interface Organization {
   id: string;
   legalName: string;

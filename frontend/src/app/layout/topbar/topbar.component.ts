@@ -1,18 +1,22 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
+import { AuthStore } from '../../core/services/auth.store';
+import { initials } from '../../core/utils/format';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { LanguageSwitcherComponent } from '../../shared/components/language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-topbar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent, TranslatePipe, LanguageSwitcherComponent],
   template: `
     <header class="topbar">
       <button
         type="button"
         class="topbar__icon-btn topbar__menu"
-        aria-label="Toggle navigation"
+        [attr.aria-label]="'topbar.toggleNav' | translate"
         (click)="menuToggle.emit()"
       >
         <app-icon name="menu" [size]="20" />
@@ -24,23 +28,38 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
           type="search"
           name="q"
           [(ngModel)]="query"
-          placeholder="Search projects, references, customers…"
-          aria-label="Search projects"
+          [placeholder]="'topbar.searchPlaceholder' | translate"
+          [attr.aria-label]="'topbar.searchLabel' | translate"
         />
       </form>
 
       <div class="topbar__right">
-        <button type="button" class="topbar__icon-btn" aria-label="Notifications">
+        <app-language-switcher />
+
+        <button
+          type="button"
+          class="topbar__icon-btn"
+          [attr.aria-label]="'topbar.notifications' | translate"
+        >
           <app-icon name="bell" [size]="20" />
           <span class="topbar__badge" aria-hidden="true"></span>
         </button>
 
         <div class="topbar__account">
-          <span class="topbar__avatar" aria-hidden="true">OP</span>
+          <span class="topbar__avatar" aria-hidden="true">{{ userInitials() }}</span>
           <span class="topbar__account-text">
-            <strong>Operator</strong>
-            <small>Documentation</small>
+            <strong>{{ user()?.displayName ?? ('topbar.signedOut' | translate) }}</strong>
+            <small>{{ roleSummary() || ('topbar.noRole' | translate) }}</small>
           </span>
+          <button
+            type="button"
+            class="topbar__icon-btn topbar__logout"
+            [attr.aria-label]="'topbar.signOut' | translate"
+            [title]="'topbar.signOut' | translate"
+            (click)="signOut()"
+          >
+            <app-icon name="arrow-left" [size]="18" />
+          </button>
         </div>
       </div>
     </header>
@@ -199,9 +218,27 @@ export class TopbarComponent {
   protected query = '';
 
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthStore);
+
+  protected readonly user = this.auth.user;
+
+  protected userInitials(): string {
+    const name = this.auth.user()?.displayName;
+    return name ? initials(name) : '—';
+  }
+
+  protected roleSummary(): string {
+    return this.auth.roles().join(' · ');
+  }
 
   protected onSearch(): void {
     const value = this.query.trim();
     this.router.navigate(['/projects'], value ? { queryParams: { q: value } } : {});
+  }
+
+  protected signOut(): void {
+    this.auth.logout().subscribe(() => {
+      void this.router.navigate(['/login']);
+    });
   }
 }

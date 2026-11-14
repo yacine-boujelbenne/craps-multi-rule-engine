@@ -1,0 +1,67 @@
+<app-panel
+  title="Commercial parties"
+  subtitle="Supplier, client, importer and consignee for this shipment. Each slot is independent and may be left empty for a reference-only draft."
+>
+  @if (canEdit()) {
+    <span panel-actions class="badge">Editable</span>
+  } @else {
+    <span panel-actions class="badge badge--muted">Read only</span>
+  }
+
+  @if (error()) {
+    <div class="alert alert--error" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="parties-grid" aria-busy="true">
+      @for (slot of slots; track slot.key) {
+        <div class="parties-field">
+          <span class="skeleton skeleton--sm"></span>
+          <span class="skeleton skeleton--md"></span>
+        </div>
+      }
+    </div>
+  } @else {
+    <form class="parties-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="parties-grid">
+        @for (slot of slots; track slot.key) {
+          <label class="parties-field">
+            <span class="parties-field__label">{{ slot.label }}</span>
+            <app-organization-select
+              [formControlName]="slot.key"
+              [role]="slot.role"
+              [allowEmpty]="true"
+              [allowCreate]="canEdit()"
+              [invalid]="slotError(slot.key) !== null"
+              [placeholder]="'Select a ' + slot.label.toLowerCase() + '…'"
+            />
+            @if (slotError(slot.key); as message) {
+              <span class="field__error" role="alert">{{ message }}</span>
+            }
+          </label>
+        }
+      </div>
+
+      <label class="parties-mirror">
+        <input
+          type="checkbox"
+          [checked]="clientIsConsignee()"
+          [disabled]="!canEdit()"
+          (change)="onClientIsConsigneeChange($any($event.target).checked)"
+        />
+        <span>Consignee is the same as the client</span>
+      </label>
+
+      @if (canEdit()) {
+        <div class="parties-actions">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save parties' }}
+          </button>
+        </div>
+      }
+    </form>
+  }
+</app-panel>

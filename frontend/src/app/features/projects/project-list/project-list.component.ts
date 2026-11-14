@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { PROJECT_STATUS_META, ProjectStatus } from '../../../core/models/project.model';
+import { AuthStore } from '../../../core/services/auth.store';
 import { DirectoryStore } from '../../../core/services/directory.store';
 import { ProjectStore } from '../../../core/services/project.store';
 import { formatDate } from '../../../core/utils/format';
@@ -39,6 +40,9 @@ export class ProjectListComponent implements OnInit {
   private readonly store = inject(ProjectStore);
   private readonly directory = inject(DirectoryStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthStore);
+
+  protected readonly isAdmin = this.auth.isAdmin;
 
   private readonly searchInput = new Subject<string>();
 

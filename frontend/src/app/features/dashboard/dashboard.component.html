@@ -2,10 +2,12 @@
   title="Dashboard"
   subtitle="Overview of export shipments and their documentation progress."
 >
-  <a class="btn btn--primary" routerLink="/projects/new">
-    <app-icon name="plus" [size]="18" />
-    New project
-  </a>
+  @if (isAdmin()) {
+    <a class="btn btn--primary" routerLink="/projects/new">
+      <app-icon name="plus" [size]="18" />
+      New project
+    </a>
+  }
 </app-page-header>
 
 @if (error()) {
@@ -71,7 +73,9 @@
     } @else if (recentProjects().length === 0) {
       <div class="empty-inline">
         <p>No projects yet.</p>
-        <a class="btn btn--ghost" routerLink="/projects/new">Create the first project</a>
+        @if (isAdmin()) {
+          <a class="btn btn--ghost" routerLink="/projects/new">Create the first project</a>
+        }
       </div>
     } @else {
       <ul class="project-list">

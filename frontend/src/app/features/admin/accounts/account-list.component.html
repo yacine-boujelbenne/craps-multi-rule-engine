@@ -1,0 +1,323 @@
+<app-page-header
+  title="Accounts"
+  subtitle="Create and manage local accounts. There is no public registration."
+>
+  @if (mode() === 'list') {
+    <button type="button" class="btn btn--primary" (click)="startCreate()">
+      <app-icon name="plus" [size]="18" />
+      New account
+    </button>
+  } @else {
+    <button type="button" class="btn btn--ghost" (click)="cancel()">
+      <app-icon name="arrow-left" [size]="18" />
+      Back to accounts
+    </button>
+  }
+</app-page-header>
+
+@if (error()) {
+  <div class="alert alert--error" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ error() }}</span>
+  </div>
+}
+
+@if (mode() === 'create') {
+  <app-panel title="New account" subtitle="The user must change this password at first sign-in.">
+    <form class="account-form" [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate>
+      <div class="account-form__grid">
+        <label class="field">
+          <span class="field__label">Username <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          @if (showError('username', 'create')) {
+            <span class="field__error">Use 3–254 characters; letters, digits, . _ @ + -</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Display name <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="displayName"
+            [attr.maxlength]="displayNameMaxLength"
+          />
+          @if (showError('displayName', 'create')) {
+            <span class="field__error">Enter a display name.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Temporary password <span class="req">*</span></span>
+          <input
+            class="control"
+            type="password"
+            formControlName="initialPassword"
+            autocomplete="new-password"
+          />
+          <span class="field__hint">At least {{ passwordMinLength }} characters.</span>
+          @if (showError('initialPassword', 'create')) {
+            <span class="field__error">Choose a valid temporary password.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Confirm password <span class="req">*</span></span>
+          <input
+            class="control"
+            type="password"
+            formControlName="confirmPassword"
+            autocomplete="new-password"
+          />
+          @if (showError('confirmPassword', 'create')) {
+            <span class="field__error">Passwords do not match.</span>
+          }
+        </label>
+      </div>
+
+      <fieldset class="roles" formGroupName="roles">
+        <legend class="roles__legend">Roles <span class="req">*</span></legend>
+        @for (role of roles; track role) {
+          <label class="role-option">
+            <input type="checkbox" [formControlName]="role" />
+            <span class="role-option__body">
+              <span class="role-option__label">{{ roleLabel(role) }}</span>
+              <span class="role-option__desc">{{ roleDescriptions[role] }}</span>
+            </span>
+          </label>
+        }
+      </fieldset>
+
+      <div class="account-form__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+          {{ submitting() ? 'Creating…' : 'Create account' }}
+        </button>
+      </div>
+    </form>
+  </app-panel>
+} @else if (mode() === 'edit') {
+  <app-panel
+    [title]="'Edit ' + (selected()?.username ?? '')"
+    subtitle="Changes require the current account version."
+  >
+    <form class="account-form" [formGroup]="editForm" (ngSubmit)="submitEdit()" novalidate>
+      <div class="account-form__grid">
+        <label class="field">
+          <span class="field__label">Username <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+          @if (showError('username', 'edit')) {
+            <span class="field__error">Use 3–254 characters; letters, digits, . _ @ + -</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Display name <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="displayName"
+            [attr.maxlength]="displayNameMaxLength"
+          />
+          @if (showError('displayName', 'edit')) {
+            <span class="field__error">Enter a display name.</span>
+          }
+        </label>
+      </div>
+
+      <label class="toggle">
+        <input type="checkbox" formControlName="active" />
+        <span>Account active</span>
+      </label>
+
+      <fieldset class="roles" formGroupName="roles">
+        <legend class="roles__legend">Roles <span class="req">*</span></legend>
+        @for (role of roles; track role) {
+          <label class="role-option">
+            <input type="checkbox" [formControlName]="role" />
+            <span class="role-option__body">
+              <span class="role-option__label">{{ roleLabel(role) }}</span>
+              <span class="role-option__desc">{{ roleDescriptions[role] }}</span>
+            </span>
+          </label>
+        }
+      </fieldset>
+
+      <div class="account-form__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+          {{ submitting() ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </form>
+  </app-panel>
+} @else if (mode() === 'reset') {
+  <app-panel
+    [title]="'Reset password · ' + (selected()?.username ?? '')"
+    subtitle="Existing sessions are revoked; the user must change it at next sign-in."
+  >
+    <form class="account-form" [formGroup]="resetForm" (ngSubmit)="submitReset()" novalidate>
+      <div class="account-form__grid">
+        <label class="field">
+          <span class="field__label">Temporary password <span class="req">*</span></span>
+          <input
+            class="control"
+            type="password"
+            formControlName="temporaryPassword"
+            autocomplete="new-password"
+          />
+          <span class="field__hint">At least {{ passwordMinLength }} characters.</span>
+          @if (showError('temporaryPassword', 'reset')) {
+            <span class="field__error">Choose a valid temporary password.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Confirm password <span class="req">*</span></span>
+          <input
+            class="control"
+            type="password"
+            formControlName="confirmPassword"
+            autocomplete="new-password"
+          />
+          @if (showError('confirmPassword', 'reset')) {
+            <span class="field__error">Passwords do not match.</span>
+          }
+        </label>
+      </div>
+
+      <div class="account-form__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+          {{ submitting() ? 'Resetting…' : 'Set temporary password' }}
+        </button>
+      </div>
+    </form>
+  </app-panel>
+} @else {
+  @if (loading()) {
+    <div class="table-card" aria-busy="true" aria-label="Loading accounts">
+      <div class="skeleton-table">
+        @for (row of [1, 2, 3, 4]; track row) {
+          <div class="skeleton-row">
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--sm"></span>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="table-card">
+      <table class="accounts-table">
+        <caption class="sr-only">
+          Local accounts
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Username</th>
+            <th scope="col">Display name</th>
+            <th scope="col">Roles</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of page().items; track user.id) {
+            <tr>
+              <td data-label="Username">
+                <span class="mono">{{ user.username }}</span>
+                @if (user.id === currentUserId()) {
+                  <span class="tag tag--self">You</span>
+                }
+              </td>
+              <td data-label="Display name">{{ user.displayName }}</td>
+              <td data-label="Roles">
+                <span class="role-tags">
+                  @for (role of user.roles; track role) {
+                    <span class="tag">{{ roleLabel(role) }}</span>
+                  }
+                </span>
+              </td>
+              <td data-label="Status">
+                <span class="status-cell">
+                  @if (user.active) {
+                    <app-status-badge label="Active" tone="success" />
+                  } @else {
+                    <app-status-badge label="Inactive" tone="neutral" />
+                  }
+                  @if (user.mustChangePassword) {
+                    <app-status-badge label="Password change due" tone="warning" />
+                  }
+                </span>
+              </td>
+              <td data-label="Actions" class="col-actions">
+                <div class="row-actions">
+                  <button type="button" class="btn btn--subtle btn--sm" (click)="startEdit(user)">
+                    Edit
+                  </button>
+                  <button type="button" class="btn btn--subtle btn--sm" (click)="startReset(user)">
+                    Reset password
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn--ghost btn--sm"
+                    (click)="toggleActive(user)"
+                    [disabled]="user.id === currentUserId()"
+                  >
+                    {{ user.active ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-cell">No accounts found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      @if (page().totalPages > 1) {
+        <nav class="pagination" aria-label="Pagination">
+          <span class="pagination__summary">
+            Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ page().totalElements }}
+          </span>
+          <div class="pagination__controls">
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="page().page === 0 || loading()"
+              (click)="goToPage(page().page - 1)"
+            >
+              Previous
+            </button>
+            <span class="pagination__page"
+              >Page {{ page().page + 1 }} of {{ page().totalPages }}</span
+            >
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="page().page >= page().totalPages - 1 || loading()"
+              (click)="goToPage(page().page + 1)"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
+      }
+    </div>
+  }
+}

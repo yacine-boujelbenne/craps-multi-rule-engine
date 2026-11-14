@@ -5,7 +5,10 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Country, Organization } from '../../../core/models/directory.model';
 import { Project, ProjectPage } from '../../../core/models/project.model';
+import { AUTH_SERVICE } from '../../../core/services/auth.service';
+import { AuthMockService } from '../../../core/services/auth-mock.service';
 import { DIRECTORY_SERVICE } from '../../../core/services/directory.service';
+import { MOCK_LATENCY_MS } from '../../../core/services/project-mock.service';
 import { ProjectStore } from '../../../core/services/project.store';
 import { ProjectListComponent } from './project-list.component';
 
@@ -121,6 +124,8 @@ describe('ProjectListComponent', () => {
         provideRouter([]),
         { provide: ProjectStore, useValue: store },
         { provide: DIRECTORY_SERVICE, useValue: directoryStub },
+        { provide: MOCK_LATENCY_MS, useValue: 0 },
+        { provide: AUTH_SERVICE, useClass: AuthMockService },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(ProjectListComponent);

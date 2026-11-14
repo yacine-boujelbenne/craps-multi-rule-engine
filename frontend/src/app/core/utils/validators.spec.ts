@@ -1,6 +1,13 @@
-import { FormControl } from '@angular/forms';
+import { FormControl, FormGroup } from '@angular/forms';
 import { describe, expect, it } from 'vitest';
-import { countryCodePattern, referencePattern, showsError, trimmedRequired } from './validators';
+import {
+  countryCodePattern,
+  matchesField,
+  passwordPolicy,
+  referencePattern,
+  showsError,
+  trimmedRequired,
+} from './validators';
 
 describe('validators', () => {
   it('treats whitespace-only values as missing', () => {
@@ -25,5 +32,27 @@ describe('validators', () => {
     expect(showsError(control)).toBe(false);
     control.markAsTouched();
     expect(showsError(control)).toBe(true);
+  });
+
+  it('enforces the password length policy', () => {
+    expect(passwordPolicy(new FormControl('short'))).toHaveProperty('passwordLength');
+    expect(passwordPolicy(new FormControl(''))).toBeNull();
+    expect(passwordPolicy(new FormControl('Long-Enough-Pass1'))).toBeNull();
+    expect(passwordPolicy(new FormControl('x'.repeat(65)))).toHaveProperty('passwordLength');
+  });
+
+  it('rejects passwords above the bcrypt byte bound', () => {
+    expect(passwordPolicy(new FormControl('é'.repeat(40)))).toHaveProperty('passwordBytes');
+  });
+
+  it('requires a confirmation field to match', () => {
+    const group = new FormGroup({
+      password: new FormControl('Long-Enough-Pass1'),
+      confirm: new FormControl('different-value', matchesField('password')),
+    });
+    group.controls.confirm.updateValueAndValidity();
+    expect(group.controls.confirm.hasError('mismatch')).toBe(true);
+    group.controls.confirm.setValue('Long-Enough-Pass1');
+    expect(group.controls.confirm.hasError('mismatch')).toBe(false);
   });
 });

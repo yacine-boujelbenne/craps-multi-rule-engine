@@ -46,18 +46,32 @@ describe('ProjectMockService', () => {
     localStorage.clear();
   });
 
-  it('lists a page of seeded projects', async () => {
+  async function seed(references: string[]): Promise<void> {
+    for (const reference of references) {
+      await firstValueFrom(service.create(validRequest({ reference })));
+    }
+  }
+
+  it('starts empty until projects are created', async () => {
     const page = await firstValueFrom(service.list());
-    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items).toEqual([]);
+    expect(page.totalElements).toBe(0);
+  });
+
+  it('lists the created projects', async () => {
+    await seed(['EXP-2026-0001', 'EXP-2026-0002']);
+    const page = await firstValueFrom(service.list());
+    expect(page.items.length).toBe(2);
     expect(page.page).toBe(0);
     expect(page.size).toBe(20);
-    expect(page.totalElements).toBeGreaterThanOrEqual(page.items.length);
+    expect(page.totalElements).toBe(2);
   });
 
   it('paginates results', async () => {
+    await seed(['EXP-2026-0001', 'EXP-2026-0002', 'EXP-2026-0003', 'EXP-2026-0004']);
     const page = await firstValueFrom(service.list({ page: 0, size: 3 }));
     expect(page.items.length).toBe(3);
-    expect(page.totalPages).toBeGreaterThan(1);
+    expect(page.totalPages).toBe(2);
   });
 
   it('creates a draft project with contract defaults', async () => {
@@ -85,17 +99,22 @@ describe('ProjectMockService', () => {
   });
 
   it('filters by reference prefix (q)', async () => {
+    await seed(['EXP-2026-0001', 'EXP-2026-0002']);
     const page = await firstValueFrom(service.list({ q: 'EXP-2026-0001' }));
-    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.length).toBe(1);
     expect(page.items.every((project) => project.reference.startsWith('EXP-2026-0001'))).toBe(true);
   });
 
   it('filters by status', async () => {
-    const page = await firstValueFrom(service.list({ status: 'COMPLETE' }));
-    expect(page.items.every((project) => project.status === 'COMPLETE')).toBe(true);
+    await seed(['EXP-2026-0001', 'EXP-2026-0002']);
+    const drafts = await firstValueFrom(service.list({ status: 'DRAFT_DATA' }));
+    expect(drafts.items.length).toBe(2);
+    const complete = await firstValueFrom(service.list({ status: 'COMPLETE' }));
+    expect(complete.items).toEqual([]);
   });
 
   it('retrieves a project by id and rejects unknown ids', async () => {
+    await seed(['EXP-2026-0001']);
     const page = await firstValueFrom(service.list());
     const first = page.items[0];
     const fetched = await firstValueFrom(service.get(first.id));
@@ -105,6 +124,7 @@ describe('ProjectMockService', () => {
   });
 
   it('updates a project with a matching expectedVersion', async () => {
+    await seed(['EXP-2026-0001']);
     const page = await firstValueFrom(service.list());
     const first = page.items[0];
     const updated = await firstValueFrom(
@@ -115,6 +135,7 @@ describe('ProjectMockService', () => {
   });
 
   it('rejects a stale expectedVersion with a 409 problem', async () => {
+    await seed(['EXP-2026-0001']);
     const page = await firstValueFrom(service.list());
     const first = page.items[0];
     await expect(

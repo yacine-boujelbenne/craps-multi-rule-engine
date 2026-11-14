@@ -1,9 +1,9 @@
 /**
  * Runtime application configuration.
  *
- * `useMockApi` keeps the UI fully functional before the backend OpenAPI
- * contract is published. Switch it to `false` (or provide the real
- * `ProjectService`) once Agent 1 freezes the API.
+ * `useMockApi` selects between the real HTTP services (backend + PostgreSQL)
+ * and fictional in-memory fixtures used for offline development and the unit
+ * test harness. The default is the real backend.
  */
 export const APP_CONFIG = {
   apiBaseUrl: '/api',

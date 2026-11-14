@@ -25,7 +25,15 @@
       <app-icon name="arrow-left" [size]="18" />
       Back
     </a>
-    <a class="btn btn--primary" [routerLink]="['/projects', p.id, 'edit']"> Edit </a>
+    @if (canManageAccess()) {
+      <a class="btn btn--ghost" [routerLink]="['/projects', p.id, 'access']">
+        <app-icon name="users" [size]="18" />
+        Manage access
+      </a>
+    }
+    @if (canEditSetup()) {
+      <a class="btn btn--primary" [routerLink]="['/projects', p.id, 'edit']"> Edit </a>
+    }
   </app-page-header>
 
   <div class="detail">
@@ -67,10 +75,7 @@
         </div>
       </app-panel>
 
-      <app-panel
-        title="Document workflow"
-        subtitle="Chronological steps. Forms are added in a later milestone."
-      >
+      <app-panel title="Document workflow" [subtitle]="workflowSubtitle()">
         <div class="progress" role="group" aria-label="Document progress">
           <div class="progress__bar">
             <span class="progress__fill" [style.width.%]="progressPercent()"></span>
@@ -123,6 +128,13 @@
           }
         </div>
       </app-panel>
+
+      <app-commercial-parties
+        [projectId]="p.id"
+        [canEdit]="canEditSetup()"
+        (loaded)="onPartiesLoaded($event)"
+        (saved)="onPartiesSaved()"
+      />
 
       @if (p.notes) {
         <app-panel title="Notes">

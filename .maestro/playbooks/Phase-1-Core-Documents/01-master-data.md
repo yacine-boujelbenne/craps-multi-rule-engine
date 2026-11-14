@@ -4,5 +4,6 @@
 
 - [ ] Backend: CRUD API `/api/companies` (types EXPORTER, PRODUCER, CONSIGNEE, NOTIFY, FORWARDER, SUPPLIER) with validation (name, country required) and search by name/type. Tests per endpoint.
 - [ ] Backend: CRUD API `/api/shipping-lines` with `bl_template_key`, and `/api/products` (species, scientific name, commercial name, HS code, presentation). Tests per endpoint.
-- [ ] Frontend: list + create/edit dialog screens for companies, shipping lines, products with filter and pagination. Component test for the company form validation.
+- [x] Frontend: list + create/edit screens for companies and products/grades with filter and pagination, implemented against `docs/contracts/commercial-setup-v1.yaml` (organizations, products, grades). The older `/api/companies` + `/api/shipping-lines` plan is superseded; shipping lines have no published contract.
+  - Result: company directory (`/partners`), product/grade catalog (`/catalog`), shipment commercial-parties panel, shared country/organization pickers; company role validation, empty-role legacy edit, and mock-service specs. Commercial parties share the project version (refresh on mismatch) and surface per-slot API field errors. Build/prettier clean; 94 tests pass.
 - [ ] Commit `feat: master data`.

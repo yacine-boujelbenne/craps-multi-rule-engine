@@ -1,0 +1,36 @@
+{
+  "app": {
+    "name": "ExportDocs",
+    "tagline": "Espace expédition"
+  },
+  "nav": {
+    "primary": "Navigation principale",
+    "workspace": "Espace de travail",
+    "configuration": "Configuration",
+    "dashboard": "Tableau de bord",
+    "projects": "Expéditions",
+    "masterData": "Données de référence",
+    "companies": "Sociétés",
+    "products": "Produits",
+    "accounts": "Comptes",
+    "soon": "Bientôt"
+  },
+  "topbar": {
+    "toggleNav": "Afficher/masquer la navigation",
+    "searchPlaceholder": "Rechercher expéditions, références, clients…",
+    "searchLabel": "Rechercher des expéditions",
+    "notifications": "Notifications",
+    "signedOut": "Déconnecté",
+    "noRole": "Aucun rôle",
+    "signOut": "Se déconnecter"
+  },
+  "footer": {
+    "demo": "Données de démonstration — API simulée",
+    "hint": "Saisie manuelle. La génération PDF arrivera dans une prochaine étape."
+  },
+  "language": {
+    "label": "Langue",
+    "en": "Anglais",
+    "fr": "Français"
+  }
+}

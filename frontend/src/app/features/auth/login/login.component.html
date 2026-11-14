@@ -1,0 +1,74 @@
+<div class="auth">
+  <div class="auth__panel">
+    <div class="auth__brand">
+      <span class="auth__logo" aria-hidden="true">
+        <app-icon name="ship" [size]="24" />
+      </span>
+      <span class="auth__brand-text">
+        <strong>ExportDocs</strong>
+        <small>Shipment workspace</small>
+      </span>
+    </div>
+
+    <h1 class="auth__title">Sign in</h1>
+    <p class="auth__subtitle">Use the account an administrator created for you.</p>
+
+    @if (error()) {
+      <div class="alert alert--error" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <form class="auth__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label class="field">
+        <span class="field__label">Username</span>
+        <input
+          type="text"
+          class="control"
+          formControlName="username"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+          placeholder="name or name@company"
+        />
+        @if (form.controls.username.invalid && form.controls.username.touched) {
+          <span class="field__error">Enter your username.</span>
+        }
+      </label>
+
+      <label class="field">
+        <span class="field__label">Password</span>
+        <input
+          type="password"
+          class="control"
+          formControlName="password"
+          autocomplete="current-password"
+          placeholder="Your password"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="field__error">Enter your password.</span>
+        }
+      </label>
+
+      <button type="submit" class="btn btn--primary auth__submit" [disabled]="loading()">
+        {{ loading() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+
+    @if (isMock) {
+      <div class="auth__demo">
+        <p class="auth__demo-title">Demo accounts (mock API)</p>
+        <ul>
+          <li><code>admin</code> / <code>Admin-Passw0rd</code></li>
+          <li><code>operator</code> / <code>Operator-Passw0rd</code></li>
+          <li><code>new.user</code> / <code>Temporary-Pass1</code> (password change required)</li>
+        </ul>
+      </div>
+    } @else {
+      <p class="auth__hint">
+        There is no self-registration. Contact an administrator if you cannot sign in.
+      </p>
+    }
+  </div>
+</div>

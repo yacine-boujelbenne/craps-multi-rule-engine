@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@a
 import { RouterLink } from '@angular/router';
 import { ProjectStore } from '../../core/services/project.store';
 import { DirectoryStore } from '../../core/services/directory.store';
+import { AuthStore } from '../../core/services/auth.store';
 import { PROJECT_STATUS_META, Project } from '../../core/models/project.model';
 import { formatDate, relativeToToday } from '../../core/utils/format';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -27,6 +28,9 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
 export class DashboardComponent implements OnInit {
   private readonly store = inject(ProjectStore);
   private readonly directory = inject(DirectoryStore);
+  private readonly auth = inject(AuthStore);
+
+  protected readonly isAdmin = this.auth.isAdmin;
 
   protected readonly stats = this.store.stats;
   protected readonly recentProjects = this.store.recentProjects;

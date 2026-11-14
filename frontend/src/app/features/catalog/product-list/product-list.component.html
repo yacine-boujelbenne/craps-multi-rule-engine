@@ -1,0 +1,436 @@
+<app-page-header
+  [title]="view() === 'grades' ? 'Grades · ' + (selectedProduct()?.name ?? '') : 'Products'"
+  [subtitle]="
+    view() === 'grades'
+      ? 'Size grades and their default carton weight and price per kg. Defaults are ADMIN-only and never rewrite existing shipments.'
+      : 'Product catalogue. Each product may define size grades with default carton weights and prices.'
+  "
+  [breadcrumbs]="
+    view() === 'grades'
+      ? [{ label: 'Products' }, { label: selectedProduct()?.name ?? 'Product' }]
+      : [{ label: 'Products' }]
+  "
+>
+  @if (view() === 'list') {
+    <button type="button" class="btn btn--primary" (click)="startCreateProduct()">
+      <app-icon name="plus" [size]="18" />
+      New product
+    </button>
+  } @else if (view() === 'form') {
+    <button type="button" class="btn btn--ghost" (click)="backToProducts()">
+      <app-icon name="arrow-left" [size]="18" />
+      Back to products
+    </button>
+  } @else {
+    <button type="button" class="btn btn--ghost" (click)="backToProducts()">
+      <app-icon name="arrow-left" [size]="18" />
+      Back to products
+    </button>
+  }
+</app-page-header>
+
+@if (error()) {
+  <div class="alert alert--error" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ error() }}</span>
+  </div>
+}
+
+@if (view() === 'form') {
+  <app-panel
+    [title]="selectedProduct() ? 'Edit product' : 'New product'"
+    subtitle="The product code is unique and case-sensitive."
+  >
+    <form class="catalog-form" [formGroup]="productForm" (ngSubmit)="submitProduct()" novalidate>
+      <div class="catalog-form__grid">
+        <label class="field">
+          <span class="field__label">Code <span class="req">*</span></span>
+          <input
+            class="control mono"
+            type="text"
+            formControlName="code"
+            [attr.maxlength]="codeMaxLength"
+            autocomplete="off"
+          />
+          @if (showError('code', productForm)) {
+            <span class="field__error"> Use up to 80 characters: letters, digits, . _ / + - </span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Name <span class="req">*</span></span>
+          <input
+            class="control"
+            type="text"
+            formControlName="name"
+            [attr.maxlength]="productNameMaxLength"
+          />
+          @if (showError('name', productForm)) {
+            <span class="field__error">Enter the product name.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Scientific name</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="scientificName"
+            [attr.maxlength]="scientificNameMaxLength"
+          />
+        </label>
+
+        <label class="field">
+          <span class="field__label">HS code</span>
+          <input class="control mono" type="text" formControlName="hsCode" placeholder="030617" />
+          @if (showError('hsCode', productForm)) {
+            <span class="field__error">Use 6 to 10 digits.</span>
+          }
+        </label>
+      </div>
+
+      @if (selectedProduct()) {
+        <label class="toggle">
+          <input type="checkbox" formControlName="active" />
+          <span>Product active</span>
+        </label>
+      }
+
+      <div class="catalog-form__actions">
+        <button type="button" class="btn btn--ghost" (click)="backToProducts()">Cancel</button>
+        <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+          {{ submitting() ? 'Saving…' : selectedProduct() ? 'Save changes' : 'Create product' }}
+        </button>
+      </div>
+    </form>
+  </app-panel>
+} @else if (view() === 'grades') {
+  @if (gradeMode() === 'form') {
+    <app-panel
+      [title]="selectedGrade() ? 'Edit grade' : 'New grade'"
+      subtitle="Carton weight is an exact decimal with up to three fractional digits; price up to four."
+    >
+      <form class="catalog-form" [formGroup]="gradeForm" (ngSubmit)="submitGrade()" novalidate>
+        <div class="catalog-form__grid">
+          <label class="field">
+            <span class="field__label">Code <span class="req">*</span></span>
+            <input class="control mono" type="text" formControlName="code" autocomplete="off" />
+            @if (showError('code', gradeForm)) {
+              <span class="field__error">Use up to 80 characters: letters, digits, . _ / + -</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Label <span class="req">*</span></span>
+            <input
+              class="control"
+              type="text"
+              formControlName="name"
+              [attr.maxlength]="gradeNameMaxLength"
+            />
+            @if (showError('name', gradeForm)) {
+              <span class="field__error">Enter the grade label.</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Display order</span>
+            <input class="control" type="number" min="0" formControlName="displayOrder" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Default carton net weight (kg)</span>
+            <input
+              class="control mono"
+              type="text"
+              formControlName="defaultCartonNetKg"
+              placeholder="10.000"
+            />
+            @if (showError('defaultCartonNetKg', gradeForm)) {
+              <span class="field__error">Enter a positive decimal (up to 3 decimals).</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Default price per kg</span>
+            <input
+              class="control mono"
+              type="text"
+              formControlName="defaultPricePerKg"
+              placeholder="0.0000"
+            />
+            @if (showError('defaultPricePerKg', gradeForm)) {
+              <span class="field__error">Enter a nonnegative decimal (up to 4 decimals).</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Currency (ISO 4217)</span>
+            <input
+              class="control mono"
+              type="text"
+              formControlName="defaultCurrency"
+              placeholder="EUR"
+              maxlength="3"
+            />
+            @if (showError('defaultCurrency', gradeForm)) {
+              <span class="field__error">Use a 3-letter currency code.</span>
+            }
+          </label>
+        </div>
+
+        @if (showPairingError()) {
+          <span class="field__error" role="alert">
+            Price per kg and currency must both be set or both be empty.
+          </span>
+        }
+
+        @if (selectedGrade()) {
+          <label class="toggle">
+            <input type="checkbox" formControlName="active" />
+            <span>Grade active</span>
+          </label>
+        }
+
+        <div class="catalog-form__actions">
+          <button type="button" class="btn btn--ghost" (click)="cancelGradeForm()">Cancel</button>
+          <button type="submit" class="btn btn--primary" [disabled]="gradeSubmitting()">
+            {{ gradeSubmitting() ? 'Saving…' : selectedGrade() ? 'Save changes' : 'Create grade' }}
+          </button>
+        </div>
+      </form>
+    </app-panel>
+  } @else {
+    <app-panel title="Grades" subtitle="Ordered by display order, then code.">
+      <button
+        panel-actions
+        type="button"
+        class="btn btn--primary btn--sm"
+        (click)="startCreateGrade()"
+      >
+        <app-icon name="plus" [size]="16" />
+        New grade
+      </button>
+
+      @if (gradesError()) {
+        <div class="alert alert--error" role="alert">{{ gradesError() }}</div>
+      }
+
+      @if (gradesLoading()) {
+        <div class="skeleton-table" aria-busy="true">
+          @for (row of [1, 2, 3]; track row) {
+            <div class="skeleton-row">
+              <span class="skeleton skeleton--md"></span>
+              <span class="skeleton skeleton--sm"></span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="table-card table-card--flush">
+          <table class="catalog-table">
+            <thead>
+              <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Grade</th>
+                <th scope="col">Carton net</th>
+                <th scope="col">Price / kg</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (grade of grades().items; track grade.id) {
+                <tr>
+                  <td data-label="Order" class="mono">{{ grade.displayOrder }}</td>
+                  <td data-label="Grade">
+                    <span class="grade-name">{{ grade.name }}</span>
+                    <span class="grade-code mono">{{ grade.code }}</span>
+                  </td>
+                  <td data-label="Carton net">{{ formatKg(grade.defaultCartonNetKg) }}</td>
+                  <td data-label="Price / kg">{{ formatPrice(grade) }}</td>
+                  <td data-label="Status">
+                    @if (grade.active) {
+                      <app-status-badge label="Active" tone="success" />
+                    } @else {
+                      <app-status-badge label="Inactive" tone="neutral" />
+                    }
+                  </td>
+                  <td data-label="Actions" class="col-actions">
+                    <div class="row-actions">
+                      <button
+                        type="button"
+                        class="btn btn--subtle btn--sm"
+                        (click)="startEditGrade(grade)"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn--ghost btn--sm"
+                        (click)="toggleGradeActive(grade)"
+                      >
+                        {{ grade.active ? 'Deactivate' : 'Activate' }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty-cell">No grades configured yet.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (grades().totalPages > 1) {
+            <nav class="pagination" aria-label="Grades pagination">
+              <span class="pagination__summary">
+                Showing {{ grades().totalElements }} grade(s)
+              </span>
+              <div class="pagination__controls">
+                <button
+                  type="button"
+                  class="btn btn--ghost"
+                  [disabled]="grades().page === 0 || gradesLoading()"
+                  (click)="goToGradePage(grades().page - 1)"
+                >
+                  Previous
+                </button>
+                <span class="pagination__page"
+                  >Page {{ grades().page + 1 }} of {{ grades().totalPages }}</span
+                >
+                <button
+                  type="button"
+                  class="btn btn--ghost"
+                  [disabled]="grades().page >= grades().totalPages - 1 || gradesLoading()"
+                  (click)="goToGradePage(grades().page + 1)"
+                >
+                  Next
+                </button>
+              </div>
+            </nav>
+          }
+        </div>
+      }
+    </app-panel>
+  }
+} @else {
+  <div class="filters">
+    <div class="filters__search">
+      <app-icon name="search" [size]="16" />
+      <input
+        type="search"
+        placeholder="Search by name or code…"
+        autocomplete="off"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </div>
+    <label class="filters__toggle">
+      <input
+        type="checkbox"
+        [checked]="includeInactive()"
+        (change)="onIncludeInactiveChange($any($event.target).checked)"
+      />
+      <span>Include inactive</span>
+    </label>
+  </div>
+
+  @if (loading()) {
+    <div class="table-card" aria-busy="true" aria-label="Loading products">
+      <div class="skeleton-table">
+        @for (row of [1, 2, 3, 4]; track row) {
+          <div class="skeleton-row">
+            <span class="skeleton skeleton--md"></span>
+            <span class="skeleton skeleton--sm"></span>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="table-card">
+      <table class="catalog-table">
+        <caption class="sr-only">
+          Product catalogue
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Code</th>
+            <th scope="col">Name</th>
+            <th scope="col">Scientific name</th>
+            <th scope="col">HS code</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (product of page().items; track product.id) {
+            <tr>
+              <td data-label="Code" class="mono">{{ product.code }}</td>
+              <td data-label="Name">{{ product.name }}</td>
+              <td data-label="Scientific name">{{ product.scientificName ?? '—' }}</td>
+              <td data-label="HS code" class="mono">{{ product.hsCode ?? '—' }}</td>
+              <td data-label="Status">
+                @if (product.active) {
+                  <app-status-badge label="Active" tone="success" />
+                } @else {
+                  <app-status-badge label="Inactive" tone="neutral" />
+                }
+              </td>
+              <td data-label="Actions" class="col-actions">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="btn btn--subtle btn--sm"
+                    (click)="openGrades(product)"
+                  >
+                    Grades
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn--ghost btn--sm"
+                    (click)="startEditProduct(product)"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty-cell">No products found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      @if (page().totalPages > 1) {
+        <nav class="pagination" aria-label="Pagination">
+          <span class="pagination__summary">
+            Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ page().totalElements }}
+          </span>
+          <div class="pagination__controls">
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="page().page === 0 || loading()"
+              (click)="goToPage(page().page - 1)"
+            >
+              Previous
+            </button>
+            <span class="pagination__page"
+              >Page {{ page().page + 1 }} of {{ page().totalPages }}</span
+            >
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="page().page >= page().totalPages - 1 || loading()"
+              (click)="goToPage(page().page + 1)"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
+      }
+    </div>
+  }
+}

@@ -1,0 +1,114 @@
+<app-page-header
+  [title]="'Project access' + (project() ? ' · ' + project()!.reference : '')"
+  subtitle="Assign operators to this shipment and choose the forms they may edit."
+>
+  <a class="btn btn--ghost" [routerLink]="['/projects', projectId]">
+    <app-icon name="arrow-left" [size]="18" />
+    Back to project
+  </a>
+</app-page-header>
+
+@if (error()) {
+  <div class="alert alert--error" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ error() }}</span>
+  </div>
+}
+
+@if (loading()) {
+  <div class="table-card" aria-busy="true" aria-label="Loading assignments">
+    <div class="skeleton-table">
+      @for (row of [1, 2, 3]; track row) {
+        <div class="skeleton-row">
+          <span class="skeleton skeleton--md"></span>
+          <span class="skeleton skeleton--lg"></span>
+        </div>
+      }
+    </div>
+  </div>
+} @else {
+  <div class="access">
+    <app-panel
+      title="Assigned operators"
+      subtitle="An empty form set grants read-only access to this shipment."
+    >
+      @if (assignments().length === 0) {
+        <p class="access__empty">No operators are assigned to this shipment yet.</p>
+      } @else {
+        <ul class="assignment-list">
+          @for (assignment of assignments(); track assignment.userId) {
+            <li class="assignment">
+              <div class="assignment__body">
+                <span class="assignment__user">{{ userLabel(assignment.userId) }}</span>
+                <div class="assignment__forms">
+                  @if (assignment.formKeys.length === 0) {
+                    <span class="tag">Read-only (no forms)</span>
+                  } @else {
+                    @for (key of assignment.formKeys; track key) {
+                      <span class="tag tag--form">{{ formKeyLabel(key) }}</span>
+                    }
+                  }
+                </div>
+              </div>
+              <div class="assignment__actions">
+                <button
+                  type="button"
+                  class="btn btn--subtle btn--sm"
+                  (click)="editAssignment(assignment)"
+                >
+                  Edit
+                </button>
+                <button type="button" class="btn btn--ghost btn--sm" (click)="remove(assignment)">
+                  Unassign
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </app-panel>
+
+    <app-panel
+      [title]="editingUserId() ? 'Update assignment' : 'Assign an operator'"
+      subtitle="Select an active operator and the forms they may edit."
+    >
+      <form class="access-form" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <label class="field">
+          <span class="field__label">Operator <span class="req">*</span></span>
+          <select class="control" formControlName="userId">
+            <option value="" disabled>Select an operator…</option>
+            @for (operator of operators(); track operator.id) {
+              <option [value]="operator.id">
+                {{ operator.displayName }} ({{ operator.username }})
+              </option>
+            }
+          </select>
+          @if (operators().length === 0) {
+            <span class="field__hint">
+              No active operator accounts. Create one under Administration → Accounts.
+            </span>
+          }
+        </label>
+
+        <fieldset class="forms" formGroupName="formKeys">
+          <legend class="forms__legend">Editable forms</legend>
+          @for (key of formKeys; track key) {
+            <label class="form-option">
+              <input type="checkbox" [formControlName]="key" />
+              <span>{{ formKeyLabel(key) }}</span>
+            </label>
+          }
+        </fieldset>
+
+        <div class="access-form__actions">
+          @if (editingUserId()) {
+            <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Cancel</button>
+          }
+          <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+            {{ submitting() ? 'Saving…' : editingUserId() ? 'Save assignment' : 'Assign operator' }}
+          </button>
+        </div>
+      </form>
+    </app-panel>
+  </div>
+}

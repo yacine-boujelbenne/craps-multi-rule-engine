@@ -1,0 +1,100 @@
+<div class="org-select">
+  <button
+    type="button"
+    class="control org-select__trigger"
+    [id]="controlId()"
+    [disabled]="disabled()"
+    [attr.aria-invalid]="invalid() || null"
+    aria-haspopup="listbox"
+    [attr.aria-expanded]="open()"
+    (click)="toggle()"
+  >
+    <span class="org-select__value" [class.org-select__value--empty]="!selectedName()">
+      {{ selectedName() || placeholder() }}
+    </span>
+    <app-icon name="chevron-right" [size]="16" class="org-select__chevron" />
+  </button>
+
+  @if (open()) {
+    <div class="org-select__panel">
+      <div class="org-select__search">
+        <app-icon name="search" [size]="16" />
+        <input
+          type="text"
+          [value]="search()"
+          placeholder="Search companies…"
+          autocomplete="off"
+          (input)="onSearch($any($event.target).value)"
+          (keydown.escape)="close()"
+        />
+      </div>
+
+      <ul class="org-select__list" role="listbox">
+        @if (allowEmpty()) {
+          <li role="option" [attr.aria-selected]="value() === null">
+            <button type="button" class="org-select__option" (click)="select(null)">
+              <span class="org-select__option-name org-select__option-name--muted">None</span>
+            </button>
+          </li>
+        }
+        @for (organization of filtered(); track organization.id) {
+          <li role="option" [attr.aria-selected]="organization.id === value()">
+            <button
+              type="button"
+              class="org-select__option"
+              [class.org-select__option--active]="organization.id === value()"
+              (click)="select(organization)"
+            >
+              <span class="org-select__option-name">{{ organization.legalName }}</span>
+              @if (organization.countryCode) {
+                <span class="org-select__option-meta">{{ organization.countryCode }}</span>
+              }
+            </button>
+          </li>
+        } @empty {
+          <li class="org-select__empty">No companies found.</li>
+        }
+      </ul>
+
+      @if (allowCreate()) {
+        <div class="org-select__footer">
+          @if (!creating()) {
+            <button type="button" class="btn btn--subtle btn--sm" (click)="startCreate()">
+              <app-icon name="plus" [size]="16" />
+              Add company
+            </button>
+          } @else {
+            <form class="org-select__create" [formGroup]="createForm" (ngSubmit)="submitCreate()">
+              <input
+                class="control"
+                type="text"
+                formControlName="legalName"
+                placeholder="Company legal name"
+                autocomplete="off"
+              />
+              <app-country-select
+                formControlName="countryCode"
+                [emptyLabel]="'Country (optional)'"
+              />
+              @if (createError()) {
+                <span class="field__error" role="alert">{{ createError() }}</span>
+              }
+              <div class="org-select__create-actions">
+                <button type="button" class="btn btn--ghost btn--sm" (click)="cancelCreate()">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="btn btn--primary btn--sm"
+                  [disabled]="createForm.invalid || submitting()"
+                >
+                  {{ submitting() ? 'Adding…' : 'Add' }}
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

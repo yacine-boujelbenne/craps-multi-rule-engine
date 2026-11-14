@@ -1,0 +1,130 @@
+.org-select {
+  position: relative;
+}
+
+.org-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.org-select__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-select__value--empty {
+  color: var(--color-muted-soft);
+}
+
+.org-select__chevron {
+  transform: rotate(90deg);
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.org-select__panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 260px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.16));
+  overflow: hidden;
+}
+
+.org-select__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+
+  input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font: inherit;
+    font-size: 14px;
+    background: transparent;
+    color: var(--color-ink);
+    height: 28px;
+  }
+}
+
+.org-select__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.org-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-ink);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.org-select__option--active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.org-select__option-name--muted {
+  color: var(--color-muted);
+}
+
+.org-select__option-meta {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-family: var(--font-mono, monospace);
+}
+
+.org-select__empty {
+  padding: var(--space-3);
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.org-select__footer {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+}
+
+.org-select__create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.org-select__create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

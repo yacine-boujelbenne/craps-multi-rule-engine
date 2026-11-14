@@ -1,0 +1,36 @@
+{
+  "app": {
+    "name": "ExportDocs",
+    "tagline": "Shipment workspace"
+  },
+  "nav": {
+    "primary": "Primary",
+    "workspace": "Workspace",
+    "configuration": "Configuration",
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "masterData": "Master data",
+    "companies": "Companies",
+    "products": "Products",
+    "accounts": "Accounts",
+    "soon": "Soon"
+  },
+  "topbar": {
+    "toggleNav": "Toggle navigation",
+    "searchPlaceholder": "Search projects, references, customers…",
+    "searchLabel": "Search projects",
+    "notifications": "Notifications",
+    "signedOut": "Signed out",
+    "noRole": "No role",
+    "signOut": "Sign out"
+  },
+  "footer": {
+    "demo": "Demo data — mock API",
+    "hint": "Manual data entry. PDF generation arrives in a later milestone."
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "fr": "French"
+  }
+}

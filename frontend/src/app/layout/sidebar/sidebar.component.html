@@ -4,13 +4,13 @@
       <app-icon name="ship" [size]="20" />
     </span>
     <span class="sidebar__brand-text">
-      <strong>ExportDocs</strong>
-      <small>Shipment workspace</small>
+      <strong>{{ 'app.name' | translate }}</strong>
+      <small>{{ 'app.tagline' | translate }}</small>
     </span>
   </a>
 
-  <nav class="sidebar__nav" aria-label="Primary">
-    <p class="sidebar__group-label">Workspace</p>
+  <nav class="sidebar__nav" [attr.aria-label]="'nav.primary' | translate">
+    <p class="sidebar__group-label">{{ 'nav.workspace' | translate }}</p>
     @for (item of primaryNav; track item.label) {
       <a
         class="sidebar__link"
@@ -19,17 +19,29 @@
         (click)="navigate.emit()"
       >
         <app-icon [name]="item.icon" [size]="18" />
-        <span>{{ item.label }}</span>
+        <span>{{ item.label | translate }}</span>
       </a>
     }
 
-    <p class="sidebar__group-label">Configuration</p>
-    @for (item of secondaryNav; track item.label) {
-      <span class="sidebar__link sidebar__link--disabled" aria-disabled="true">
-        <app-icon [name]="item.icon" [size]="18" />
-        <span>{{ item.label }}</span>
-        <span class="sidebar__soon">Soon</span>
-      </span>
+    <p class="sidebar__group-label">{{ 'nav.configuration' | translate }}</p>
+    @for (item of secondaryNav(); track item.label) {
+      @if (item.link) {
+        <a
+          class="sidebar__link"
+          [routerLink]="item.link"
+          routerLinkActive="sidebar__link--active"
+          (click)="navigate.emit()"
+        >
+          <app-icon [name]="item.icon" [size]="18" />
+          <span>{{ item.label | translate }}</span>
+        </a>
+      } @else {
+        <span class="sidebar__link sidebar__link--disabled" aria-disabled="true">
+          <app-icon [name]="item.icon" [size]="18" />
+          <span>{{ item.label | translate }}</span>
+          <span class="sidebar__soon">{{ 'nav.soon' | translate }}</span>
+        </span>
+      }
     }
   </nav>
 
@@ -37,12 +49,12 @@
     @if (isMock) {
       <div class="sidebar__demo">
         <span class="sidebar__demo-dot" aria-hidden="true"></span>
-        Demo data — mock API
+        {{ 'footer.demo' | translate }}
       </div>
     }
     <div class="sidebar__hint">
       <app-icon name="alert" [size]="16" />
-      <p>Manual data entry. PDF generation arrives in a later milestone.</p>
+      <p>{{ 'footer.hint' | translate }}</p>
     </div>
   </div>
 </aside>
