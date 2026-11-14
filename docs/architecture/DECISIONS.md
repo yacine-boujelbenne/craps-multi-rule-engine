@@ -19,7 +19,7 @@ This is an additive architecture decision record. Existing shared plans and play
 | Trinity | Owner confirmed it is only a tag. | No special business, access or calculation rules. |
 | Shipment quantities and protected defaults | Owner confirmed carton quantities/net kg/gross kg vary per shipment. Box weights, size-grade definitions and price/kg are defaults that only ADMIN may change. | Assigned operators enter shipment quantities/actual weights; no operator override of protected defaults. Preserve applied defaults/prices in history. See QUANTITY-MODEL.md. |
 | Catch/CC/HC scope | Owner confirmed no lot/certificate sharing across shipments and one CC for one shipment/HC. | One logical CC and HC per completed shipment; many vessels/lots and document revisions remain possible within it. |
-| Agent ownership | Current user assigns architect schema/bootstrap/contracts and Agent 2 business REST APIs. | Takes precedence over older roster assigning schema to backend and architect to main checkout. Use isolated worktrees. |
+| Agent ownership | Current user assigns architect schema/bootstrap/contracts and Agent 2 business REST APIs. | Agent 1 owns migrations/contracts and reviews implementation. All agents use the single canonical checkout and coordinate branch switches; no worktrees or copies (owner reconfirmed 2026-11-14). |
 
 ## Still open; not guessed
 

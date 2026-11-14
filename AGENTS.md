@@ -2,6 +2,19 @@
 
 Read this file and `docs/00-context.md` before any task. Each Auto Run task starts in a fresh session, so never assume memory of earlier tasks. Check the repo (`git log`, existing files) to see what is already done.
 
+## Owner execution rules — 2026-11-14
+
+Read and apply these rules before every task. Correctness > minimal changes > token efficiency > additional features. These owner instructions override conflicting older guidance below and in other project documents.
+
+- Keep reasoning, explanations and responses concise. Avoid repetition, obvious implementation explanations, tutorials and unnecessary planning. Ask only when essential information is missing.
+- Implement exactly the requested scope. Reuse existing functions, dependencies and architecture; make small patches without unrelated refactors, optional features or abstractions.
+- Do not create Markdown files unless explicitly requested. Do not generate README/CHANGELOG/TODO/SUMMARY/REPORT files or implementation notes. Prefer modifying existing files; create temporary scripts, examples, demonstrations or sample files only when strictly necessary. No backups or duplicate implementations.
+- Inspect only relevant files with targeted searches and short output. Avoid rereading unchanged files or scanning dependencies, generated directories, build outputs or virtual environments unless necessary.
+- Do not create new test files unless explicitly requested. Prefer targeted validation; do not run the full suite for small isolated changes or repeat unchanged checks. Run expensive integration, Docker, browser or end-to-end tests only when necessary or explicitly requested. Never claim unexecuted checks passed.
+- Final responses contain only files modified, a brief description (1–3 sentences), test status when applicable, and important errors/blockers. Omit lengthy explanations, code dumps and step-by-step summaries unless requested.
+- Use only `/run/media/yacine/yassine/DMS/export-docs-platform`. No copies or additional worktrees. Agents share the current branch; coordinate branch switches, staging, commits and integration to preserve other agents' work.
+- Agent 1 owns architecture, schema/migrations, API contracts, task boundaries and acceptance review. Agent 2 implements backend services/APIs against those contracts. Coordinate shared-file changes and report contract gaps instead of inventing business rules.
+
 ## Project
 Export documentation platform for seafood shipments. Exactly one shipment is one **Project**; its documents (invoice, packing list, catch certificates, BL, health certificate, certificate of origin, processing statement) are forms linked through one source of truth. Data enters by manual forms or by import (PDF via OCR, Excel/Word/CSV). MVP generates HC, draft BL, CC, CO and Shipping List. Generate two variants: an unsigned ready-for-real-signing copy and a prominently watermarked CLIENT PREVIEW NOT VALID FOR OFFICIAL USE showing authorized sample signature placement. Manual entry first; OCR later. Seal and lock are separate identifiers, with lock added late.
 

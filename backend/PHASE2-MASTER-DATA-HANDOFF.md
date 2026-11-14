@@ -1,10 +1,20 @@
 # Phase 2 backend preparation and delivery
 
-Branch: `feat/backend-phase2-master-data`, based on `b2ae193`.
-Worktree: `/run/media/yacine/yassine/DMS/backend-phase2-master-data`.
-The owner's explicit Phase 2 worktree instruction takes precedence over the
-repository's earlier single-checkout convention. Angular and migrations are
-outside this implementation's ownership.
+Workspace: `/run/media/yacine/yassine/DMS/export-docs-platform`, using the current shared branch. The owner reconfirmed on 2026-11-14: no copies or additional worktrees. Coordinate branch switches and Git mutations; preserve unrelated work. Agent 1 owns schema/migrations/contracts and acceptance review; Agent 2 owns backend implementation. Angular remains outside this backend task.
+
+## Current Agent 1 → Agent 2 handoff — 2026-11-14
+
+V1–V3 backend behavior is implemented; the saved host result is 200 passing tests, not a fresh run today. V4, `MasterDataSchemaIT` and `master-data-v1.yaml` v1.1.0 are present, but Phase 2 services/controllers are absent from the current checkout. Start with company/contact/address and country/city APIs, reusing the existing party/catalog/account/project infrastructure. Continue with factories, taxonomy and shipment links against resolved contracts. Do not restart project/account/commercial setup or add OCR/PDF generation.
+
+Agent 1 must resolve these contract gaps before the affected operations are implemented:
+
+- Decimal regexes in `master-data-v1.yaml` are over-escaped: the published net-weight pattern rejects `12.500`. Correct decimal schemas and validate representative values.
+- Project-product POST/PATCH expose `unitPrice` and `currency` to assigned operators without explicit field restrictions. Preserve the confirmed ADMIN-only price/default policy; define how applied grade/price values are retained and which fields operators may select or edit. Do not invent snapshot persistence or permit a price override.
+- Immutable `factory_approval` rows plus the one-open-ended-row index prevent replacing an existing open-ended approval. Define a version/supersession policy and effective-date selection; never update an immutable row to close it or use a correction migration as a routine operator workflow. Any migration change must account for whether V4 has already been applied.
+
+Agent 2: preserve existing API compatibility and use presence-aware PATCH, canonical UUIDs, exact decimals, transactional audit, fresh role/form checks, project locking and effective-change version increments. Extend role handling for CARRIER; ordinary company/product/taxonomy metadata follows the published ADMIN/OPERATOR access while size grades, box-weight defaults and prices remain ADMIN-only. Changes to contracts/migrations go back to Agent 1. Unaffected operations can proceed while the gaps above remain open.
+
+Acceptance requires targeted validation of changed behavior, permission/tampering cases, stale/no-op revisions, audit rollback and existing client compatibility. Agent 1 must verify V4 on fresh PostgreSQL and as a V1–V3 upgrade before accepting the migration. Follow the owner's minimal-execution rules in AGENTS.md: no new test files without explicit request, no full suite for isolated changes, and no unexecuted-check claims. The existing full backend gate remains necessary before accepting the integrated Phase 2 slice. Report changed files, actual checks and blockers concisely.
 
 ## Existing implementation to extend
 
@@ -28,7 +38,7 @@ mutating historical document snapshots.
 
 ## Published database contract and mapping
 
-The committed target artifacts are `V4__master_data_addresses_factories_and_project_products.sql` and `docs/contracts/master-data-v1.yaml` v1.1.0 (contract-gap correction commit to follow). Apply V4 only after V1-V3. It is additive; it does not rename/drop tables, rewrite project rows, or transform legacy organization.address_text. Existing API consumers keep their V1/V2 responses. These are ready for Agent 2 to implement against.
+The committed target artifacts are `V4__master_data_addresses_factories_and_project_products.sql` and `docs/contracts/master-data-v1.yaml` v1.1.0. Apply V4 only after V1-V3. It is additive; it does not rename/drop tables, rewrite project rows, or transform legacy organization.address_text. Existing API consumers keep their V1/V2 responses. Implement unaffected operations against these artifacts; the review gaps above remain open for affected operations.
 
 | API/resource | Storage and rule |
 | --- | --- |
