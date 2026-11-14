@@ -2,20 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, catchError, forkJoin, of, startWith, switchMap } from 'rxjs';
-import {
-  COMPLETED_DOC_STATUSES,
-  DOCUMENT_STATUS_META,
-  DOCUMENT_STEP_DESCRIPTIONS,
-  DOCUMENT_STEP_LABELS,
-  DocumentStepKey,
-  deriveDocumentSteps,
-} from '../../../core/models/document-step';
 import { ProjectPermissions } from '../../../core/models/account.model';
 import { PROJECT_STATUS_META, Project } from '../../../core/models/project.model';
 import { ASSIGNMENT_SERVICE } from '../../../core/services/assignment.service';
 import { AuthStore } from '../../../core/services/auth.store';
 import { DirectoryStore } from '../../../core/services/directory.store';
-import { NotificationService } from '../../../core/services/notification.service';
 import { ProjectStore } from '../../../core/services/project.store';
 import { formatDate, formatDateTime, initials, relativeToToday } from '../../../core/utils/format';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -24,6 +15,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import { PanelComponent } from '../../../shared/components/panel/panel.component';
 import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { CommercialPartiesComponent } from '../commercial-parties/commercial-parties.component';
+import { ShipmentProductsComponent } from '../shipment-products/shipment-products.component';
 
 @Component({
   selector: 'app-project-details',
@@ -36,6 +28,7 @@ import { CommercialPartiesComponent } from '../commercial-parties/commercial-par
     StatusBadgeComponent,
     EmptyStateComponent,
     CommercialPartiesComponent,
+    ShipmentProductsComponent,
   ],
   templateUrl: './project-details.component.html',
   styleUrl: './project-details.component.scss',
@@ -44,10 +37,10 @@ export class ProjectDetailsComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly store = inject(ProjectStore);
   private readonly directory = inject(DirectoryStore);
-  private readonly notifications = inject(NotificationService);
   private readonly auth = inject(AuthStore);
   private readonly assignments = inject(ASSIGNMENT_SERVICE);
 
+  protected readonly isAdmin = this.auth.isAdmin;
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly project = signal<Project | null>(null);
@@ -66,29 +59,12 @@ export class ProjectDetailsComponent {
   protected readonly workflowSubtitle = computed(() => {
     const editable = this.permissions()?.editableForms.length ?? 0;
     if (!this.auth.isAdmin() && editable === 0) {
-      return 'Read-only access to this shipment. Forms are added in a later milestone.';
+      return 'Read-only access to shipment forms.';
     }
-    return 'Chronological steps. Forms are added in a later milestone.';
+    return 'Enter document data and print the shipment summary.';
   });
 
-  protected readonly stepLabels = DOCUMENT_STEP_LABELS;
-  protected readonly stepDescriptions = DOCUMENT_STEP_DESCRIPTIONS;
-  protected readonly docStatusMeta = DOCUMENT_STATUS_META;
   protected readonly projectStatusMeta = PROJECT_STATUS_META;
-
-  protected readonly steps = computed(() => {
-    const project = this.project();
-    return project ? deriveDocumentSteps(project.status) : [];
-  });
-
-  protected readonly completedSteps = computed(
-    () => this.steps().filter((step) => COMPLETED_DOC_STATUSES.includes(step.status)).length,
-  );
-
-  protected readonly progressPercent = computed(() => {
-    const total = this.steps().length;
-    return total === 0 ? 0 : Math.round((this.completedSteps() / total) * 100);
-  });
 
   protected readonly consigneeName = computed(() => {
     const project = this.project();
@@ -199,20 +175,6 @@ export class ProjectDetailsComponent {
 
   protected portName(id: string | null | undefined): string {
     return this.directory.portName(id);
-  }
-
-  protected stepStatus(key: DocumentStepKey) {
-    return this.steps().find((item) => item.key === key)?.status ?? 'NOT_STARTED';
-  }
-
-  protected isStepDone(key: DocumentStepKey): boolean {
-    return COMPLETED_DOC_STATUSES.includes(this.stepStatus(key));
-  }
-
-  protected openStep(key: DocumentStepKey): void {
-    this.notifications.info(
-      `The ${this.stepLabels[key]} form is not available yet. It will be added in a later milestone.`,
-    );
   }
 
   protected readonly formatDate = formatDate;

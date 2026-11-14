@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { APP_CONFIG } from '../../../core/config/app-config';
 import { normalizeUsername } from '../../../core/models/account.model';
 import { AuthStore } from '../../../core/services/auth.store';
 import { trimmedRequired } from '../../../core/utils/validators';
@@ -20,7 +19,7 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly isMock = APP_CONFIG.useMockApi;
+  protected readonly isMock = false;
   protected readonly loading = this.auth.loading;
   protected readonly error = this.auth.error;
 

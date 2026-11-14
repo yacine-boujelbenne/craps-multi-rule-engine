@@ -3,6 +3,9 @@ import { FormGroup } from '@angular/forms';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Organization, OrganizationPage } from '../../../core/models/commercial.model';
+import { AuthStore } from '../../../core/services/auth.store';
+import { COMPANY_ADDRESS_SERVICE } from '../../../core/services/company-address.service';
+import { GEOGRAPHY_SERVICE } from '../../../core/services/geography.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ORGANIZATION_SERVICE } from '../../../core/services/organization.service';
 import { CompanyListComponent } from './company-list.component';
@@ -69,6 +72,18 @@ describe('CompanyListComponent', () => {
       providers: [
         { provide: ORGANIZATION_SERVICE, useValue: organizations },
         { provide: NotificationService, useValue: notifications },
+        {
+          provide: AuthStore,
+          useValue: { isAdmin: () => true, hasRole: () => true },
+        },
+        {
+          provide: COMPANY_ADDRESS_SERVICE,
+          useValue: { list: () => of([]), create: () => of(null), update: () => of(null) },
+        },
+        {
+          provide: GEOGRAPHY_SERVICE,
+          useValue: { listCountries: () => of([]), searchCities: () => of({ items: [] }) },
+        },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(CompanyListComponent);

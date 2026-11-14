@@ -3,6 +3,8 @@ package com.exportdocs.commercial;
 import com.exportdocs.catalog.api.CatalogRequestParser;
 import com.exportdocs.party.api.OrganizationRequestParser;
 import com.exportdocs.party.api.SetupListQuery;
+import com.exportdocs.party.domain.OrganizationRole;
+import com.exportdocs.party.domain.OrganizationAddress;
 import com.exportdocs.project.api.CommercialPartiesRequestParser;
 import com.exportdocs.project.application.ProjectProblem;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +41,220 @@ class CommercialRequestParserTest {
         assertThat(result.fields().registrationNumber()).isNull();
         assertThat(result.fields().roles()).isNull();
         assertThat(result.fields().active()).isNull();
+        assertThat(result.fields().tradeName()).isNull();
+        assertThat(result.fields().taxIdentifier()).isNull();
+        assertThat(result.fields().email()).isNull();
+        assertThat(result.fields().phone()).isNull();
+    }
+
+    @Test
+    void companyMetadataSupportsTrimmedNullableTextAndCarrierRole() throws Exception {
+        var result = organizations.parse(json.readTree("""
+            {"legalName":"Company","roles":["CARRIER","SHIPPING_LINE"],"tradeName":" Trade ",
+             "taxIdentifier":" TAX-001 ","email":" Sales@example.test ","phone":" +216 00123456 "}
+            """), false);
+        assertThat(result.fields().tradeName()).isEqualTo("Trade");
+        assertThat(result.fields().taxIdentifier()).isEqualTo("TAX-001");
+        assertThat(result.fields().email()).isEqualTo("Sales@example.test");
+        assertThat(result.fields().phone()).isEqualTo("+216 00123456");
+        assertThat(result.fields().roles()).containsExactlyInAnyOrder(OrganizationRole.CARRIER, OrganizationRole.SHIPPING_LINE);
+        var cleared = organizations.parse(json.readTree("""
+            {"expectedVersion":3,"tradeName":null,"taxIdentifier":" ","email":" ","phone":null}
+            """), true);
+        assertThat(cleared.supplied()).containsExactlyInAnyOrder("tradeName", "taxIdentifier", "email", "phone");
+        assertThat(cleared.fields().tradeName()).isNull();
+        assertThat(cleared.fields().taxIdentifier()).isNull();
+        assertThat(cleared.fields().email()).isNull();
+        assertThat(cleared.fields().phone()).isNull();
+        var query = new LinkedMultiValueMap<String, String>();
+        query.add("role", "CARRIER");
+        assertThat(SetupListQuery.parse(query, true).role()).isEqualTo("CARRIER");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"tradeName", "taxIdentifier", "email", "phone"})
+    void companyMetadataRejectsWrongTypesAndOverlongText(String field) throws Exception {
+        int max = switch (field) {
+            case "tradeName" -> 250;
+            case "taxIdentifier" -> 100;
+            case "email" -> 254;
+            default -> 50;
+        };
+        String boundary = field.equals("email") ? "a@" + "b".repeat(63) + "." + "c".repeat(63)
+            + "." + "d".repeat(63) + "." + "e".repeat(60) : "x".repeat(max);
+        assertThat(boundary).hasSize(max);
+        var body = json.createObjectNode().put("expectedVersion", 0).put(field, boundary);
+        organizations.parse(body, true);
+        body.put(field, boundary + "x");
+        assertThatThrownBy(() -> organizations.parse(body, true)).isInstanceOfSatisfying(ProjectProblem.class,
+            problem -> assertThat(problem.errors()).extracting(ProjectProblem.FieldError::field).contains(field));
+        for (String value : List.of("42", "true", "[]", "{}")) {
+            var invalid = json.createObjectNode().put("expectedVersion", 0).set(field, json.readTree(value));
+            assertThatThrownBy(() -> organizations.parse(invalid, true)).isInstanceOfSatisfying(ProjectProblem.class,
+                problem -> assertThat(problem.errors()).extracting(ProjectProblem.FieldError::field).contains(field));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"invalid", "a@@example.test", "a b@example.test"})
+    void companyEmailRequiresValidEmailText(String email) {
+        var body = json.createObjectNode().put("expectedVersion", 0).put("email", email);
+        assertThatThrownBy(() -> organizations.parse(body, true)).isInstanceOfSatisfying(ProjectProblem.class,
+            problem -> assertThat(problem.errors()).extracting(ProjectProblem.FieldError::field).contains("email"));
+    }
+
+    @Test
+    void addressParserPreservesPostalZerosAndExplicitPatchPresence() throws Exception {
+        var created = organizations.address(json.readTree("""
+            {"kind":"BUSINESS","countryCode":"TN","manualCity":" Tunis ","addressLine1":" Road 1 ",
+             "addressLine2":" ","postalCode":" 00123 ","expectedOrganizationVersion":3}
+            """), false);
+        assertThat(created.fields().kind()).isEqualTo(OrganizationAddress.Kind.BUSINESS);
+        assertThat(created.fields().countryCode()).isEqualTo("TN");
+        assertThat(created.fields().manualCity()).isEqualTo("Tunis");
+        assertThat(created.fields().addressLine1()).isEqualTo("Road 1");
+        assertThat(created.fields().addressLine2()).isNull();
+        assertThat(created.fields().postalCode()).isEqualTo("00123");
+        assertThat(created.fields().active()).isTrue();
+        assertThat(created.expectedOrganizationVersion()).isEqualTo(3);
+        var patched = organizations.address(json.readTree("""
+            {"expectedVersion":2,"cityId":null,"manualCity":" New city ","postalCode":null,"active":false}
+            """), true);
+        assertThat(patched.expectedVersion()).isEqualTo(2);
+        assertThat(patched.supplied()).containsExactlyInAnyOrder("cityId", "manualCity", "postalCode", "active");
+        assertThat(patched.fields().cityId()).isNull();
+        assertThat(patched.fields().postalCode()).isNull();
+        assertThat(patched.fields().manualCity()).isEqualTo("New city");
+        assertThat(patched.fields().kind()).isNull();
+        assertThat(patched.fields().countryCode()).isNull();
+        assertThat(patched.fields().active()).isFalse();
+        var sparse = organizations.address(json.readTree("{\"expectedVersion\":0,\"addressLine1\":\"Road\"}"), true);
+        assertThat(sparse.fields().active()).isNull();
+        assertThat(sparse.supplied()).containsExactly("addressLine1");
+        UUID city = UUID.randomUUID();
+        var cityBody = json.createObjectNode().put("kind", "OTHER").put("countryCode", "TN")
+            .put("addressLine1", "Road").put("cityId", city.toString());
+        assertThat(organizations.address(cityBody, false).fields().cityId()).isEqualTo(city);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"null", "\"0\"", "0.0", "-1", "9223372036854775808"})
+    void addressCreateVersionGuardRequiresANonnegativeLongWhenPresent(String token) throws Exception {
+        var body = json.readTree("{\"kind\":\"OTHER\",\"countryCode\":\"TN\",\"addressLine1\":\"Road\","
+            + "\"manualCity\":\"Tunis\",\"expectedOrganizationVersion\":" + token + "}");
+        assertThatThrownBy(() -> organizations.address(body, false)).isInstanceOfSatisfying(ProjectProblem.class,
+            problem -> assertThat(problem.errors()).extracting(ProjectProblem.FieldError::field).contains("expectedOrganizationVersion"));
+    }
+
+    @Test
+    void addressParserRejectsReadOnlyFieldsWrongTypesNullRequiredFieldsAndOversizedText() throws Exception {
+        for (String field : List.of("kind", "countryCode", "addressLine1")) {
+            var create = json.createObjectNode().put("kind", "BUSINESS").put("countryCode", "TN")
+                .put("addressLine1", "Road");
+            create.remove(field);
+            assertThatThrownBy(() -> organizations.address(create, false)).isInstanceOf(ProjectProblem.class);
+            for (String token : List.of("null", "42", "\" \"")) {
+                var patch = json.createObjectNode().put("expectedVersion", 0).set(field, json.readTree(token));
+                assertThatThrownBy(() -> organizations.address(patch, true)).isInstanceOf(ProjectProblem.class);
+            }
+        }
+        for (String field : List.of("id", "organizationId", "version", "createdAt", "expectedOrganizationVersion", "addressText")) {
+            var patch = json.createObjectNode().put("expectedVersion", 0).put(field, "unexpected");
+            assertThatThrownBy(() -> organizations.address(patch, true)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String[] invalid : List.of(new String[]{"kind", "\"UNKNOWN\""}, new String[]{"countryCode", "\"tn\""},
+                new String[]{"cityId", "\"1-1-1-1-1\""}, new String[]{"postalCode", "123"},
+                new String[]{"manualCity", "[]"}, new String[]{"addressLine2", "true"}, new String[]{"active", "null"})) {
+            var patch = json.createObjectNode().put("expectedVersion", 0).set(invalid[0], json.readTree(invalid[1]));
+            assertThatThrownBy(() -> organizations.address(patch, true)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String field : List.of("manualCity", "addressLine1", "addressLine2", "postalCode")) {
+            int max = field.equals("manualCity") ? 200 : field.equals("postalCode") ? 40 : 250;
+            var patch = json.createObjectNode().put("expectedVersion", 0).put(field, "x".repeat(max));
+            organizations.address(patch, true);
+            patch.put(field, "x".repeat(max + 1));
+            assertThatThrownBy(() -> organizations.address(patch, true)).isInstanceOf(ProjectProblem.class);
+        }
+        var create = json.createObjectNode().put("kind", "OTHER").put("countryCode", "TN").put("addressLine1", "Road")
+            .put("active", false);
+        assertThatThrownBy(() -> organizations.address(create, false)).isInstanceOf(ProjectProblem.class);
+        assertThatThrownBy(() -> organizations.address(json.createObjectNode(), true)).isInstanceOf(ProjectProblem.class);
+    }
+
+
+
+
+
+
+
+    @Test
+    void productAliasesNormalizeToOneNameAndPreserveSparseMetadataPatches() throws Exception {
+        var created = catalog.product(json.readTree("""
+            {"code":"P","commercialName":" Product ","description":" Description ",
+             "processingMethod":" Frozen ","storageRequirements":" -18 C "}
+            """), false);
+        assertThat(created.fields().name()).isEqualTo("Product");
+        assertThat(created.fields().defaultMeasurementUnit()).isEqualTo("KG");
+        assertThat(created.fields().processingMethod()).isEqualTo("Frozen");
+        assertThat(created.supplied()).contains("name").doesNotContain("commercialName");
+        catalog.product(json.readTree("{\"code\":\"P\",\"name\":\" Product \",\"commercialName\":\"Product\"}"), false);
+        var patch = catalog.product(json.readTree("{\"expectedVersion\":3,\"commercialName\":\" New \",\"description\":null}"), true);
+        assertThat(patch.supplied()).containsExactlyInAnyOrder("name", "description");
+        assertThat(patch.fields().name()).isEqualTo("New");
+        assertThat(patch.fields().description()).isNull();
+        assertThat(patch.fields().defaultMeasurementUnit()).isNull();
+        assertThat(patch.fields().active()).isNull();
+        for (String input : List.of("{\"code\":\"P\"}", "{\"code\":\"P\",\"name\":\"A\",\"commercialName\":\"B\"}")) {
+            assertThatThrownBy(() -> catalog.product(json.readTree(input), false)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String token : List.of("null", "\" \"", "42", "\"" + "x".repeat(31) + "\"")) {
+            var invalid = json.createObjectNode().put("expectedVersion", 0).set("defaultMeasurementUnit", json.readTree(token));
+            assertThatThrownBy(() -> catalog.product(invalid, true)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String field : List.of("categories", "grades", "defaultPricePerKg", "unitPrice")) {
+            var invalid = json.createObjectNode().put("expectedVersion", 0).put(field, "unexpected");
+            assertThatThrownBy(() -> catalog.product(invalid, true)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String field : List.of("processingMethod", "storageRequirements")) {
+            int max = field.equals("processingMethod") ? 150 : 500;
+            var invalid = json.createObjectNode().put("expectedVersion", 0).put(field, "x".repeat(max + 1));
+            assertThatThrownBy(() -> catalog.product(invalid, true)).isInstanceOf(ProjectProblem.class);
+        }
+    }
+
+    @Test
+    void taxonomyParserKeepsPatchPresenceAndStrictUniqueAssignmentIds() throws Exception {
+        var created = catalog.taxonomy(json.readTree("{\"code\":\" T \",\"name\":\" Taxonomy \",\"description\":\" \"}"), false);
+        assertThat(created.fields().code()).isEqualTo("T");
+        assertThat(created.fields().description()).isNull();
+        assertThat(created.fields().active()).isTrue();
+        var patch = catalog.taxonomy(json.readTree("{\"expectedVersion\":0,\"description\":null}"), true);
+        assertThat(patch.supplied()).containsExactly("description");
+        assertThat(patch.fields().active()).isNull();
+        UUID category = UUID.randomUUID();
+        var body = json.createObjectNode().put("expectedProductVersion", 2);
+        body.putArray("categoryIds").add(category.toString());
+        assertThat(catalog.assignment(body).categoryIds()).containsExactly(category);
+        body.putArray("categoryIds");
+        assertThat(catalog.assignment(body).categoryIds()).isEmpty();
+        for (String token : List.of("null", "{}", "[null]", "[42]", "[\"1-1-1-1-1\"]",
+                "[\"" + category + "\",\"" + category.toString().toUpperCase(java.util.Locale.ROOT) + "\"]")) {
+            body.set("categoryIds", json.readTree(token));
+            assertThatThrownBy(() -> catalog.assignment(body)).isInstanceOf(ProjectProblem.class);
+        }
+        body.putArray("categoryIds");
+        for (String token : List.of("null", "\"0\"", "0.0", "-1", "9223372036854775808")) {
+            body.set("expectedProductVersion", json.readTree(token));
+            assertThatThrownBy(() -> catalog.assignment(body)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String field : List.of("code", "name")) {
+            var invalid = json.createObjectNode().put("expectedVersion", 0).putNull(field);
+            assertThatThrownBy(() -> catalog.taxonomy(invalid, true)).isInstanceOf(ProjectProblem.class);
+        }
+        for (String field : List.of("id", "version", "categoryIds")) {
+            var invalid = json.createObjectNode().put("expectedVersion", 0).put(field, "unexpected");
+            assertThatThrownBy(() -> catalog.taxonomy(invalid, true)).isInstanceOf(ProjectProblem.class);
+        }
     }
 
     @Test

@@ -73,7 +73,7 @@ class UuidPathBindingTest {
     @ValueSource(strings = {"a1234567-b123-c123-d123-e123456789ab", "A1234567-B123-C123-D123-E123456789AB"})
     void fullLengthIdsAreAcceptedInEitherCase(String value) throws Exception {
         when(catalog.getProduct(ID)).thenReturn(new CatalogDtos.ProductResponse(ID, 0, "P", "Product",
-                null, null, true));
+                null, null, true, "Product", null, null, null, "KG", List.of(), List.of()));
         mvc.perform(authenticated(get("/api/products/{id}", value))).andExpect(status().isOk());
         verify(catalog).getProduct(ID);
     }

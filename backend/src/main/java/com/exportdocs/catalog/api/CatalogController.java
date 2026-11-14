@@ -6,8 +6,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URI;
 import java.util.Set;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.LinkedMultiValueMap;
+import com.exportdocs.party.api.SetupJson;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,8 +33,13 @@ public class CatalogController {
     }
 
     @GetMapping
-    public CatalogDtos.ProductPage products(@RequestParam MultiValueMap<String, String> query) {
-        return service.products(SetupListQuery.parse(query, false));
+    public CatalogDtos.ProductPage products(@RequestParam(required = false) UUID categoryId,
+        @RequestParam MultiValueMap<String, String> query) {
+        SetupListQuery.rejectUnknown(query, Set.of("q", "page", "size", "includeInactive", "categoryId"));
+        if (query.containsKey("categoryId") && categoryId == null) throw SetupJson.invalid("categoryId", "A canonical UUID is required.");
+        var paging = new LinkedMultiValueMap<>(query);
+        paging.remove("categoryId");
+        return service.products(categoryId, SetupListQuery.parse(paging, false));
     }
 
     @GetMapping("/{id}")
@@ -74,6 +82,20 @@ public class CatalogController {
         @PathVariable UUID id, @RequestBody JsonNode body, @RequestParam MultiValueMap<String, String> query) {
         none(query);
         return service.patchGrade(productId, id, parser.grade(body, true));
+    }
+
+    @GetMapping("/{productId}/taxonomy-categories")
+    public List<CatalogDtos.TaxonomyResponse> assignedCategories(@PathVariable UUID productId,
+        @RequestParam MultiValueMap<String, String> query) {
+        none(query);
+        return service.assignedCategories(productId);
+    }
+
+    @PutMapping("/{productId}/taxonomy-categories")
+    public List<CatalogDtos.TaxonomyResponse> replaceCategories(@PathVariable UUID productId, @RequestBody JsonNode body,
+        @RequestParam MultiValueMap<String, String> query) {
+        none(query);
+        return service.replaceCategories(productId, parser.assignment(body));
     }
 
     private void none(MultiValueMap<String, String> query) {

@@ -147,9 +147,10 @@ describe('ProjectFormComponent', () => {
     });
   }
 
-  it('is invalid until all required fields are provided', () => {
+  it('accepts a reference-only draft', () => {
     const fixture = create();
-    expect(form(fixture).valid).toBe(false);
+    form(fixture).controls.reference.setValue('DRAFT-ONLY');
+    expect(form(fixture).valid).toBe(true);
   });
 
   it('rejects a malformed project reference', () => {
@@ -169,6 +170,7 @@ describe('ProjectFormComponent', () => {
 
   it('does not submit an invalid form', () => {
     const fixture = create();
+    form(fixture).controls.reference.setValue('');
     (fixture.componentInstance as unknown as { submit(): void }).submit();
     expect(store.createProject).not.toHaveBeenCalled();
     expect(notifications.error).toHaveBeenCalled();

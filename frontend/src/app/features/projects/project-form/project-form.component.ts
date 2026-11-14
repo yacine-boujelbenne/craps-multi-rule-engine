@@ -1,3 +1,5 @@
+import { HttpClient } from '@angular/common/http';
+import { APP_CONFIG } from '../../../core/config/app-config';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -53,6 +55,24 @@ interface ProjectFormValue {
   styleUrl: './project-form.component.scss',
 })
 export class ProjectFormComponent implements OnInit {
+  private readonly http = inject(HttpClient);
+  protected readonly savingPort = signal(false);
+  protected addPort(name: string, countryCode: string): void {
+    if (!name.trim() || !countryCode || this.savingPort()) return;
+    this.savingPort.set(true);
+    this.http.post(`${APP_CONFIG.apiBaseUrl}/ports`, { name: name.trim(), countryCode }).subscribe({
+      next: () => {
+        this.savingPort.set(false);
+        this.directory.ensureLoaded();
+        this.notifications.success('Port saved.');
+      },
+      error: () => {
+        this.savingPort.set(false);
+        this.notifications.error('Unable to save port.');
+      },
+    });
+  }
+
   private readonly fb = inject(FormBuilder);
   private readonly store = inject(ProjectStore);
   private readonly directory = inject(DirectoryStore);
@@ -89,15 +109,15 @@ export class ProjectFormComponent implements OnInit {
 
   protected readonly form = this.fb.group({
     reference: ['', [trimmedRequired, referencePattern]],
-    exporterId: ['', [trimmedRequired]],
-    producerIds: this.fb.control<string[]>([], [Validators.required]),
-    consigneeId: ['', [trimmedRequired]],
+    exporterId: [''],
+    producerIds: this.fb.control<string[]>([]),
+    consigneeId: [''],
     notifyPartyId: [''],
     freightForwarderId: [''],
     shippingLineId: [''],
-    destinationCountryCode: ['', [trimmedRequired]],
-    portOfLoadingId: ['', [trimmedRequired]],
-    portOfDischargeId: ['', [trimmedRequired]],
+    destinationCountryCode: [''],
+    portOfLoadingId: [''],
+    portOfDischargeId: [''],
     expectedDepartureDate: [''],
     notes: ['', [Validators.maxLength(NOTES_MAX_LENGTH)]],
   });

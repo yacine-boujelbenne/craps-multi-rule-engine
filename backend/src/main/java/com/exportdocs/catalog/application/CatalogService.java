@@ -4,6 +4,7 @@ import com.exportdocs.catalog.api.CatalogDtos;
 import com.exportdocs.catalog.api.CatalogMapper;
 import com.exportdocs.catalog.domain.Product;
 import com.exportdocs.catalog.domain.Grade;
+import com.exportdocs.catalog.domain.TaxonomyCategory;
 import com.exportdocs.catalog.infrastructure.CatalogStore;
 import com.exportdocs.party.api.SetupListQuery;
 import com.exportdocs.project.application.ProjectActor;
@@ -15,6 +16,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +38,7 @@ public class CatalogService {
 
     @Transactional
     public CatalogDtos.ProductResponse createProduct(ProductWrite request) {
-        var actor = admin();
+        var actor = write();
         audit.auditContext(actor.id());
         return mapper.product(store.createProduct(UUID.randomUUID(), request.fields()));
     }
@@ -52,7 +54,7 @@ public class CatalogService {
 
     @Transactional
     public CatalogDtos.ProductResponse patchProduct(UUID id, ProductWrite request) {
-        var actor = admin();
+        var actor = write();
         var current = store.product(id, true);
         version(current.version(), request.expectedVersion());
         var fields = request.fields();
@@ -61,7 +63,12 @@ public class CatalogService {
             supplied.contains("name") ? fields.name() : current.name(),
             supplied.contains("scientificName") ? fields.scientificName() : current.scientificName(),
             supplied.contains("hsCode") ? fields.hsCode() : current.hsCode(),
-            supplied.contains("active") ? fields.active() : current.active());
+            supplied.contains("active") ? fields.active() : current.active(),
+            supplied.contains("description") ? fields.description() : current.description(),
+            supplied.contains("processingMethod") ? fields.processingMethod() : current.processingMethod(),
+            supplied.contains("storageRequirements") ? fields.storageRequirements() : current.storageRequirements(),
+            supplied.contains("defaultMeasurementUnit") ? fields.defaultMeasurementUnit() : current.defaultMeasurementUnit(),
+            current.categories(), current.grades());
         if (Objects.equals(next, current)) return mapper.product(current);
         audit.auditContext(actor.id());
         return mapper.product(store.updateProduct(next));
@@ -103,9 +110,9 @@ public class CatalogService {
 
     @Transactional(readOnly = true,
         isolation = Isolation.REPEATABLE_READ)
-    public CatalogDtos.ProductPage products(SetupListQuery query) {
+    public CatalogDtos.ProductPage products(UUID category, SetupListQuery query) {
         listAccess(query);
-        var result = store.products(query);
+        var result = store.products(category, query);
         return new CatalogDtos.ProductPage(result.items().stream().map(mapper::product).toList(), query.page(), query.size(),
             result.total(), pages(result.total(), query.size()));
     }
@@ -118,6 +125,58 @@ public class CatalogService {
         var result = store.grades(product, query);
         return new CatalogDtos.GradePage(result.items().stream().map(mapper::grade).toList(), query.page(), query.size(),
             result.total(), pages(result.total(), query.size()));
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public CatalogDtos.TaxonomyPage taxonomy(SetupListQuery query) {
+        listAccess(query);
+        var page = store.taxonomy(query);
+        return new CatalogDtos.TaxonomyPage(page.items().stream().map(mapper::taxonomy).toList(), query.page(), query.size(),
+            page.total(), pages(page.total(), query.size()));
+    }
+
+    @Transactional
+    public CatalogDtos.TaxonomyResponse createTaxonomy(TaxonomyWrite request) {
+        var actor = write();
+        audit.auditContext(actor.id());
+        return mapper.taxonomy(store.createTaxonomy(UUID.randomUUID(), request.fields()));
+    }
+
+    @Transactional
+    public CatalogDtos.TaxonomyResponse patchTaxonomy(UUID id, TaxonomyWrite request) {
+        var actor = write();
+        var current = store.taxonomy(id, true);
+        version(current.version(), request.expectedVersion());
+        var fields = request.fields();
+        var supplied = request.supplied();
+        var next = new TaxonomyCategory(id, current.version(), supplied.contains("code") ? fields.code() : current.code(),
+            supplied.contains("name") ? fields.name() : current.name(),
+            supplied.contains("description") ? fields.description() : current.description(),
+            supplied.contains("active") ? fields.active() : current.active());
+        if (next.equals(current)) return mapper.taxonomy(current);
+        audit.auditContext(actor.id());
+        return mapper.taxonomy(store.updateTaxonomy(next));
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public List<CatalogDtos.TaxonomyResponse> assignedCategories(UUID id) {
+        read();
+        return store.product(id, false).categories().stream().map(mapper::taxonomy).toList();
+    }
+
+    @Transactional
+    public List<CatalogDtos.TaxonomyResponse> replaceCategories(UUID id, TaxonomyWrite.Assignment request) {
+        var actor = write();
+        var product = store.product(id, true);
+        if (product.version() != request.expectedProductVersion()) throw ProjectProblem.field(409, "expectedProductVersion",
+            "stale_version", "Product changed; reload before replacing taxonomy assignments.");
+        var current = product.categories().stream().map(TaxonomyCategory::id).collect(Collectors.toSet());
+        store.validateCategories(request.categoryIds(), current);
+        if (!current.equals(request.categoryIds())) {
+            audit.auditContext(actor.id());
+            store.replaceCategories(id, current, request.categoryIds());
+        }
+        return store.assignedCategories(id).stream().map(mapper::taxonomy).toList();
     }
 
     private int pages(long total, int size) {
@@ -142,6 +201,12 @@ public class CatalogService {
     private ProjectActor admin() {
         var actor = actors.current();
         if (!actor.admin()) throw forbidden();
+        return actor;
+    }
+
+    private ProjectActor write() {
+        var actor = actors.current();
+        if (!actor.canWrite()) throw forbidden();
         return actor;
     }
 

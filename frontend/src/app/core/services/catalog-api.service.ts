@@ -89,6 +89,9 @@ export class CatalogApiService implements CatalogService {
     if (query.includeInactive) {
       params = params.set('includeInactive', true);
     }
+    if (query.categoryId) {
+      params = params.set('categoryId', query.categoryId);
+    }
     return params;
   }
 }

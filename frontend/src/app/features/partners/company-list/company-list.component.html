@@ -3,10 +3,12 @@
   subtitle="Directory of exporters, suppliers, clients, importers, consignees and other parties. One company may hold several roles."
 >
   @if (mode() === 'list') {
-    <button type="button" class="btn btn--primary" (click)="startCreate()">
-      <app-icon name="plus" [size]="18" />
-      New company
-    </button>
+    @if (canEdit()) {
+      <button type="button" class="btn btn--primary" (click)="startCreate()">
+        <app-icon name="plus" [size]="18" />
+        New company
+      </button>
+    }
   } @else {
     <button type="button" class="btn btn--ghost" (click)="cancel()">
       <app-icon name="arrow-left" [size]="18" />
@@ -40,6 +42,16 @@
           }
         </label>
 
+        <label class="field">
+          <span class="field__label">Trade name</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="tradeName"
+            [attr.maxlength]="tradeNameMaxLength"
+          />
+        </label>
+
         <div class="field">
           <span class="field__label">Country</span>
           <app-country-select formControlName="countryCode" [emptyLabel]="'None'" />
@@ -53,6 +65,42 @@
             type="text"
             formControlName="registrationNumber"
             [attr.maxlength]="registrationMaxLength"
+          />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Tax identifier</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="taxIdentifier"
+            [attr.maxlength]="taxIdentifierMaxLength"
+          />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Email</span>
+          <input
+            class="control"
+            type="email"
+            formControlName="email"
+            [attr.maxlength]="emailMaxLength"
+            autocomplete="email"
+          />
+          @if (showError('email', 'create')) {
+            <span class="field__error">Enter a valid email address.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Phone</span>
+          <input
+            class="control"
+            type="tel"
+            formControlName="phone"
+            [attr.maxlength]="phoneMaxLength"
+            [attr.placeholder]="phonePlaceholder('create')"
+            autocomplete="tel"
           />
         </label>
       </div>
@@ -111,6 +159,16 @@
           }
         </label>
 
+        <label class="field">
+          <span class="field__label">Trade name</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="tradeName"
+            [attr.maxlength]="tradeNameMaxLength"
+          />
+        </label>
+
         <div class="field">
           <span class="field__label">Country</span>
           <app-country-select formControlName="countryCode" [emptyLabel]="'None'" />
@@ -123,6 +181,42 @@
             type="text"
             formControlName="registrationNumber"
             [attr.maxlength]="registrationMaxLength"
+          />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Tax identifier</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="taxIdentifier"
+            [attr.maxlength]="taxIdentifierMaxLength"
+          />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Email</span>
+          <input
+            class="control"
+            type="email"
+            formControlName="email"
+            [attr.maxlength]="emailMaxLength"
+            autocomplete="email"
+          />
+          @if (showError('email', 'edit')) {
+            <span class="field__error">Enter a valid email address.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field__label">Phone</span>
+          <input
+            class="control"
+            type="tel"
+            formControlName="phone"
+            [attr.maxlength]="phoneMaxLength"
+            [attr.placeholder]="phonePlaceholder('edit')"
+            autocomplete="tel"
           />
         </label>
       </div>
@@ -165,6 +259,156 @@
         </button>
       </div>
     </form>
+  </app-panel>
+
+  <app-panel
+    title="Addresses"
+    subtitle="Structured addresses used by factories and commercial documents."
+  >
+    @if (addressMode() === 'list') {
+      <div class="panel-actions">
+        <button type="button" class="btn btn--ghost btn--sm" (click)="startAddAddress()">
+          <app-icon name="plus" [size]="16" />
+          Add address
+        </button>
+      </div>
+    }
+
+    @if (addressesLoading()) {
+      <p class="muted">Loading addresses…</p>
+    } @else if (addressError()) {
+      <div class="alert alert--error" role="alert">{{ addressError() }}</div>
+    } @else if (companyAddresses().length === 0) {
+      <p class="muted">No addresses recorded for this company.</p>
+    } @else {
+      <ul class="address-list">
+        @for (address of companyAddresses(); track address.id) {
+          <li class="address-card">
+            <div class="address-card__head">
+              <span class="tag">{{ addressKindLabels[address.kind] }}</span>
+              @if (!address.active) {
+                <app-status-badge label="Inactive" tone="neutral" />
+              }
+              <button
+                type="button"
+                class="btn btn--subtle btn--sm"
+                (click)="startEditAddress(address)"
+              >
+                Edit
+              </button>
+            </div>
+            <p class="address-card__lines">
+              {{ address.addressLine1 }}
+              @if (address.addressLine2) {
+                <br />{{ address.addressLine2 }}
+              }
+              <br />{{ addressCity(address) }}, {{ address.countryCode }}
+              @if (address.postalCode) {
+                {{ address.postalCode }}
+              }
+            </p>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (addressMode() === 'form') {
+      <form class="company-form" [formGroup]="addressForm" (ngSubmit)="submitAddress()" novalidate>
+        <div class="company-form__grid">
+          <label class="field">
+            <span class="field__label">Kind</span>
+            <select class="control" formControlName="kind">
+              @for (kind of addressKinds; track kind) {
+                <option [value]="kind">{{ addressKindLabels[kind] }}</option>
+              }
+            </select>
+          </label>
+
+          <div class="field">
+            <span class="field__label">Country</span>
+            <app-country-select formControlName="countryCode" [emptyLabel]="'Choose country'" />
+          </div>
+
+          <label class="field">
+            <span class="field__label">Search city</span>
+            <input
+              class="control"
+              type="search"
+              formControlName="cityQuery"
+              (input)="onCityQuery($any($event.target).value)"
+              autocomplete="off"
+            />
+            @if (cityResults().length > 0) {
+              <ul class="city-results">
+                @for (city of cityResults(); track city.id) {
+                  <li>
+                    <button type="button" class="btn btn--ghost btn--sm" (click)="selectCity(city)">
+                      {{ city.name }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Manual city</span>
+            <input
+              class="control"
+              type="text"
+              formControlName="manualCity"
+              [attr.maxlength]="manualCityMaxLength"
+              (input)="onManualCityInput($any($event.target).value)"
+            />
+            <span class="field__hint">Use only when the city is not in the list.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Address line 1 <span class="req">*</span></span>
+            <input
+              class="control"
+              type="text"
+              formControlName="addressLine1"
+              [attr.maxlength]="addressLineMaxLength"
+            />
+            @if (
+              addressForm.controls.addressLine1.touched && addressForm.controls.addressLine1.invalid
+            ) {
+              <span class="field__error">Enter the street address.</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Address line 2</span>
+            <input
+              class="control"
+              type="text"
+              formControlName="addressLine2"
+              [attr.maxlength]="addressLineMaxLength"
+            />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Postal code</span>
+            <input
+              class="control"
+              type="text"
+              formControlName="postalCode"
+              [attr.maxlength]="postalCodeMaxLength"
+            />
+          </label>
+        </div>
+
+        <div class="company-form__actions">
+          <button type="button" class="btn btn--ghost" (click)="cancelAddress()">Cancel</button>
+          <button type="submit" class="btn btn--primary" [disabled]="addressSubmitting()">
+            {{
+              addressSubmitting() ? 'Saving…' : editingAddress() ? 'Save address' : 'Add address'
+            }}
+          </button>
+        </div>
+      </form>
+    }
   </app-panel>
 } @else {
   <div class="filters">
@@ -259,20 +503,24 @@
               </td>
               <td data-label="Actions" class="col-actions">
                 <div class="row-actions">
-                  <button
-                    type="button"
-                    class="btn btn--subtle btn--sm"
-                    (click)="startEdit(organization)"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn--ghost btn--sm"
-                    (click)="toggleActive(organization)"
-                  >
-                    {{ organization.active ? 'Deactivate' : 'Activate' }}
-                  </button>
+                  @if (canEdit()) {
+                    <button
+                      type="button"
+                      class="btn btn--subtle btn--sm"
+                      (click)="startEdit(organization)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--ghost btn--sm"
+                      (click)="toggleActive(organization)"
+                    >
+                      {{ organization.active ? 'Deactivate' : 'Activate' }}
+                    </button>
+                  } @else {
+                    <span class="muted">Read only</span>
+                  }
                 </div>
               </td>
             </tr>

@@ -18,10 +18,13 @@ def json_schema(value):
     if not isinstance(value, dict):
         return value
     result = {key: json_schema(item) for key, item in value.items() if key != 'nullable'}
-    if value.get('nullable'):
-        result['type'] = [result['type'], 'null']
     if '$ref' in result:
         result['$ref'] = result['$ref'].replace('#/components/schemas/', '#/definitions/')
+    if value.get('nullable'):
+        if 'type' in result:
+            result['type'] = [result['type'], 'null']
+        else:
+            result = {'anyOf': [result, {'type': 'null'}]}
     return result
 
 
@@ -30,6 +33,8 @@ ACCESS_SPEC = yaml.safe_load((ROOT / 'docs/contracts/accounts-access-v1.yaml').r
 ACCESS_SCHEMAS = json_schema(ACCESS_SPEC['components']['schemas'])
 COMMERCIAL_SPEC = yaml.safe_load((ROOT / 'docs/contracts/commercial-setup-v1.yaml').read_text())
 COMMERCIAL_SCHEMAS = json_schema(COMMERCIAL_SPEC['components']['schemas'])
+MASTER_SPEC = yaml.safe_load((ROOT / 'docs/contracts/master-data-v1.yaml').read_text())
+MASTER_SCHEMAS = json_schema(MASTER_SPEC['components']['schemas'])
 
 
 def validate(name, payload, schemas=SCHEMAS):
@@ -157,6 +162,52 @@ class ProjectContractChecks(unittest.TestCase):
         for bad in [{}, {'expectedVersion': -1}, {'expectedVersion': 0, 'code': None},
                     {'expectedVersion': 0, 'active': None}, {'expectedVersion': 0, 'unownedField': 1}]:
             self.assertTrue(validate('UpdateGradeRequest', bad, COMMERCIAL_SCHEMAS))
+
+    def test_shipment_decimal_strings_preserve_scale_and_reject_malformed_values(self):
+        base = {'productId': '00000000-0000-0000-0000-000000000010', 'expectedProjectVersion': 0}
+        for field in ['quantity', 'netWeightKg', 'grossWeightKg', 'unitPrice']:
+            for value in ['12', '12.500', None]:
+                self.assertFalse(validate('ProjectProductWrite', {**base, field: value}, MASTER_SCHEMAS))
+            for value in [12.5, '-1', '1e3', '12x500', '12\\500', '1.23456']:
+                self.assertTrue(validate('ProjectProductWrite', {**base, field: value}, MASTER_SCHEMAS), (field, value))
+
+    def test_protected_price_contract_is_explicit(self):
+        for schema in ['ProjectProductWrite', 'ProjectProductPatch']:
+            self.assertIn('ADMIN-only', MASTER_SCHEMAS[schema]['properties']['unitPrice']['description'])
+        response_schema = MASTER_SCHEMAS['ProjectProduct']
+        response = response_schema['properties']
+        self.assertIn('productId', response_schema['required'])
+        self.assertIn('projectVersion', response_schema['required'])
+        self.assertNotIn('expectedProjectVersion', response)
+        for field in ['appliedGradeVersion', 'appliedGradeCode', 'appliedGradeName', 'appliedCartonNetKg']:
+            self.assertTrue(response[field]['readOnly'])
+
+    def test_company_address_shapes_versions_and_write_roles(self):
+        create = {'kind': 'BUSINESS', 'countryCode': 'TN', 'manualCity': 'Example city',
+                  'addressLine1': 'Example street', 'postalCode': '0010', 'expectedOrganizationVersion': 2}
+        self.assertFalse(validate('AddressWrite', create, MASTER_SCHEMAS))
+        patch = {'expectedVersion': 0, 'active': False, 'addressLine2': None}
+        self.assertFalse(validate('AddressPatch', patch, MASTER_SCHEMAS))
+        for payload in [{}, {'expectedVersion': 0, 'active': None}, {'expectedVersion': 0, 'id': 'injected'}]:
+            self.assertTrue(validate('AddressPatch', payload, MASTER_SCHEMAS))
+        for invalid in [{'expectedOrganizationVersion': -1}, {'postalCode': 10}, {'active': False}]:
+            self.assertTrue(validate('AddressWrite', {**create, **invalid}, MASTER_SCHEMAS))
+        paths = MASTER_SPEC['paths']
+        for path, verb in [('/api/organizations/{organizationId}/addresses', 'post'),
+                           ('/api/organizations/{organizationId}/addresses/{addressId}', 'patch')]:
+            self.assertEqual(paths[path][verb]['x-authorized-roles'], ['ADMIN', 'OPERATOR'])
+
+    def test_product_aliases_metadata_and_taxonomy_request_boundaries(self):
+        for alias in ['name', 'commercialName']:
+            good = {'code': 'EXAMPLE', alias: 'Example product', 'defaultMeasurementUnit': 'KG'}
+            self.assertFalse(validate('ProductWrite', good, MASTER_SCHEMAS))
+            for invalid in [{'defaultMeasurementUnit': None}, {'defaultMeasurementUnit': ''},
+                            {'defaultPricePerKg': '5'}, {'unknown': True}]:
+                self.assertTrue(validate('ProductWrite', {**good, **invalid}, MASTER_SCHEMAS))
+        self.assertTrue(validate('ProductWrite', {'code': 'EXAMPLE'}, MASTER_SCHEMAS))
+        self.assertFalse(validate('ProductPatch', {'expectedVersion': 0, 'name': 'Legacy', 'description': None}, MASTER_SCHEMAS))
+        self.assertFalse(validate('ProductTaxonomyCategoryPatch', {'expectedVersion': 0, 'active': False}, MASTER_SCHEMAS))
+        self.assertTrue(validate('ProductTaxonomyCategoryPatch', {'expectedVersion': 0, 'active': None}, MASTER_SCHEMAS))
 
     def test_all_operations_have_explicit_problem_responses(self):
         for path in SPEC['paths'].values():

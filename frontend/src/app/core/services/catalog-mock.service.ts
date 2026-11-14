@@ -1,6 +1,6 @@
 import { Inject, Injectable, InjectionToken, Optional } from '@angular/core';
-import { Observable, of, throwError } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { forkJoin, Observable, of, throwError } from 'rxjs';
+import { catchError, delay, map } from 'rxjs/operators';
 import {
   CreateGradeRequest,
   CreateProductRequest,
@@ -14,6 +14,7 @@ import {
 import { ApiProblemError } from '../models/project.model';
 import { CatalogListQuery, CatalogService } from './catalog.service';
 import { DEFAULT_MOCK_LATENCY_MS, MOCK_LATENCY_MS } from './project-mock.service';
+import { TAXONOMY_SERVICE, TaxonomyService } from './taxonomy.service';
 
 /** Fictional products for offline development; empty by default. */
 export const MOCK_PRODUCTS_SEED = new InjectionToken<Product[]>('MOCK_PRODUCTS_SEED', {
@@ -40,6 +41,7 @@ export class CatalogMockService implements CatalogService {
     @Optional() @Inject(MOCK_LATENCY_MS) latency?: number,
     @Inject(MOCK_PRODUCTS_SEED) products: Product[] = [],
     @Inject(MOCK_GRADES_SEED) grades: Grade[] = [],
+    @Optional() @Inject(TAXONOMY_SERVICE) private readonly taxonomy?: TaxonomyService | null,
   ) {
     this.latency = latency ?? DEFAULT_MOCK_LATENCY_MS;
     this.products = (products ?? []).map(clone);
@@ -59,7 +61,29 @@ export class CatalogMockService implements CatalogService {
       );
     }
     items.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-    return of(pageOf(items, query)).pipe(delay(this.latency));
+
+    const categoryId = query.categoryId;
+    if (!categoryId) {
+      return of(pageOf(items, query)).pipe(delay(this.latency));
+    }
+    if (!this.taxonomy) {
+      return of(pageOf([], query)).pipe(delay(this.latency));
+    }
+    const assignments = items.map((product) =>
+      this.taxonomy!.listAssignments(product.id).pipe(
+        map((categories) => categories.some((category) => category.id === categoryId)),
+        catchError(() => of(false)),
+      ),
+    );
+    return forkJoin(assignments).pipe(
+      map((matches) =>
+        pageOf(
+          items.filter((_, index) => matches[index]),
+          query,
+        ),
+      ),
+      delay(this.latency),
+    );
   }
 
   getProduct(id: string): Observable<Product> {
@@ -81,6 +105,10 @@ export class CatalogMockService implements CatalogService {
       name: input.name.trim(),
       scientificName: input.scientificName ?? null,
       hsCode: input.hsCode ?? null,
+      description: input.description ?? null,
+      processingMethod: input.processingMethod ?? null,
+      storageRequirements: input.storageRequirements ?? null,
+      defaultMeasurementUnit: input.defaultMeasurementUnit ?? 'kg',
       active: input.active ?? true,
     };
     this.products = [...this.products, product];
@@ -106,6 +134,17 @@ export class CatalogMockService implements CatalogService {
       scientificName:
         patch.scientificName !== undefined ? patch.scientificName : current.scientificName,
       hsCode: patch.hsCode !== undefined ? patch.hsCode : current.hsCode,
+      description: patch.description !== undefined ? patch.description : current.description,
+      processingMethod:
+        patch.processingMethod !== undefined ? patch.processingMethod : current.processingMethod,
+      storageRequirements:
+        patch.storageRequirements !== undefined
+          ? patch.storageRequirements
+          : current.storageRequirements,
+      defaultMeasurementUnit:
+        patch.defaultMeasurementUnit !== undefined
+          ? patch.defaultMeasurementUnit
+          : current.defaultMeasurementUnit,
       active: patch.active ?? current.active,
     };
     if (sameProduct(next, current)) {
@@ -266,6 +305,10 @@ function sameProduct(a: Product, b: Product): boolean {
     a.name === b.name &&
     a.scientificName === b.scientificName &&
     a.hsCode === b.hsCode &&
+    a.description === b.description &&
+    a.processingMethod === b.processingMethod &&
+    a.storageRequirements === b.storageRequirements &&
+    a.defaultMeasurementUnit === b.defaultMeasurementUnit &&
     a.active === b.active
   );
 }

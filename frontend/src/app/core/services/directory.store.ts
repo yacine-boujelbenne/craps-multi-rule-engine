@@ -32,7 +32,7 @@ export class DirectoryStore {
   );
 
   ensureLoaded(): void {
-    if (this._loaded() || this._loading()) {
+    if (this._loading()) {
       return;
     }
     this._loading.set(true);

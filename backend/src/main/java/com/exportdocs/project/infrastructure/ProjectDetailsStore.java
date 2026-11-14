@@ -40,10 +40,14 @@ public class ProjectDetailsStore {
     }
 
     public boolean canEditSetup(UUID project,ProjectActor actor) {
+        return canEditForm(project, actor, "PROJECT_SETUP");
+    }
+
+    public boolean canEditForm(UUID project, ProjectActor actor, String form) {
         return actor.admin() || Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT EXISTS (SELECT 1 FROM project_form_assignment
-                WHERE project_id=? AND user_id=? AND form_key='PROJECT_SETUP')
-                """,Boolean.class,project,actor.id()));
+                WHERE project_id=? AND user_id=? AND form_key=?)
+                """,Boolean.class,project,actor.id(),form));
     }
 
     public void validate(ProjectFields fields, Set<String> supplied) {

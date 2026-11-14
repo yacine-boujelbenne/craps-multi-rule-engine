@@ -3,6 +3,7 @@ import {
   adminGuard,
   authGuard,
   guestGuard,
+  masterDataGuard,
   passwordChangeGuard,
   projectSetupGuard,
 } from './core/guards/auth.guard';
@@ -73,6 +74,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'projects/:id/forms',
+        loadComponent: () =>
+          import('./features/projects/shipment-forms/shipment-forms.component').then(
+            (m) => m.ShipmentFormsComponent,
+          ),
+      },
+      {
         path: 'projects/:id',
         title: 'Project · ExportDocs',
         loadComponent: () =>
@@ -92,7 +100,7 @@ export const routes: Routes = [
       {
         path: 'partners',
         title: 'Companies · ExportDocs',
-        canActivate: [adminGuard],
+        canActivate: [masterDataGuard],
         loadComponent: () =>
           import('./features/partners/company-list/company-list.component').then(
             (m) => m.CompanyListComponent,
@@ -101,7 +109,7 @@ export const routes: Routes = [
       {
         path: 'catalog',
         title: 'Products · ExportDocs',
-        canActivate: [adminGuard],
+        canActivate: [masterDataGuard],
         loadComponent: () =>
           import('./features/catalog/product-list/product-list.component').then(
             (m) => m.ProductListComponent,
