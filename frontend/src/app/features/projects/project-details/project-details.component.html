@@ -76,41 +76,7 @@
       </app-panel>
 
       <app-panel title="Document workflow" [subtitle]="workflowSubtitle()">
-        <div class="progress" role="group" aria-label="Document progress">
-          <div class="progress__bar">
-            <span class="progress__fill" [style.width.%]="progressPercent()"></span>
-          </div>
-          <span class="progress__label">
-            {{ completedSteps() }} of {{ steps().length }} steps ready
-          </span>
-        </div>
-
-        <ol class="steps">
-          @for (step of steps(); track step.key; let i = $index) {
-            <li class="step" [class.step--done]="isStepDone(step.key)">
-              <button type="button" class="step__btn" (click)="openStep(step.key)">
-                <span class="step__index" aria-hidden="true">
-                  @if (isStepDone(step.key)) {
-                    <app-icon name="check" [size]="15" />
-                  } @else {
-                    {{ i + 1 }}
-                  }
-                </span>
-                <span class="step__body">
-                  <span class="step__label">{{ stepLabels[step.key] }}</span>
-                  <span class="step__desc">{{ stepDescriptions[step.key] }}</span>
-                </span>
-                <span class="step__status">
-                  <app-status-badge
-                    [label]="docStatusMeta[step.status].label"
-                    [tone]="docStatusMeta[step.status].tone"
-                  />
-                  <span class="step__soon">Soon</span>
-                </span>
-              </button>
-            </li>
-          }
-        </ol>
+        <a class="btn btn--primary" [routerLink]="['/projects',p.id,'forms']">Document forms and printable summary</a>
       </app-panel>
 
       <app-panel title="Business partners">
@@ -136,6 +102,12 @@
         (saved)="onPartiesSaved()"
       />
 
+      <app-shipment-products [canEdit]="isAdmin() || (permissions()?.editableForms?.includes('PACKING_LIST') ?? false)"
+        [projectId]="p.id"
+        [projectVersion]="p.version"
+        (changed)="onPartiesSaved()"
+      />
+
       @if (p.notes) {
         <app-panel title="Notes">
           <p class="notes">{{ p.notes }}</p>
@@ -152,7 +124,7 @@
             [tone]="projectStatusMeta[p.status].tone"
           />
           <p class="status-summary__hint">
-            {{ completedSteps() }} of {{ steps().length }} document steps ready
+            Open document forms to enter and review shipment data.
           </p>
         </div>
       </app-panel>

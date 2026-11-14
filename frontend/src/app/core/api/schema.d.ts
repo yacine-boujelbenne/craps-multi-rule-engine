@@ -4,445 +4,437 @@
  */
 
 export interface paths {
-  '/api/projects': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List authorized projects, ordered by createdAt DESC, id DESC */
+        get: operations["listProjects"];
+        put?: never;
+        /** Create one shipment project in DRAFT_DATA */
+        post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List authorized projects, ordered by createdAt DESC, id DESC */
-    get: operations['listProjects'];
-    put?: never;
-    /** Create one shipment project in DRAFT_DATA */
-    post: operations['createProject'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/projects/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
+    "/api/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Read a shipment project */
+        get: operations["getProject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Atomically patch permitted setup fields */
+        patch: operations["updateProject"];
+        trace?: never;
     };
-    /** Read a shipment project */
-    get: operations['getProject'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Atomically patch permitted setup fields */
-    patch: operations['updateProject'];
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * @description DRAFT_DATA is the initial status (called DRAFT in the older master plan). Transitions require a future explicit workflow command; status is never client-writable in Phase 1.
-     * @enum {string}
-     */
-    ProjectStatus:
-      | 'DRAFT_DATA'
-      | 'IN_PROGRESS'
-      | 'READY_FOR_DRAFT_REVIEW'
-      | 'DRAFT_REVIEWED'
-      | 'AWAITING_EXTERNAL_ISSUANCE'
-      | 'OFFICIAL_DOCUMENTS_RECEIVED'
-      | 'COMPLETE'
-      | 'ARCHIVED';
-    CreateProjectRequest: {
-      /** @description Trim outer whitespace before validation; store uppercase. Globally unique, including archived projects. ASCII operational reference; no internal spaces. */
-      reference: string;
-      /** Format: uuid */
-      exporterId?: string | null;
-      /** @default [] */
-      producerIds: string[];
-      /** Format: uuid */
-      consigneeId?: string | null;
-      /** Format: uuid */
-      notifyPartyId?: string | null;
-      /** Format: uuid */
-      freightForwarderId?: string | null;
-      /** Format: uuid */
-      shippingLineId?: string | null;
-      /** @description ISO 3166-1 alpha-2, uppercase. Format validated now; code-set validation at service boundary. */
-      destinationCountryCode?: string | null;
-      /** Format: uuid */
-      portOfLoadingId?: string | null;
-      /** Format: uuid */
-      portOfDischargeId?: string | null;
-      /**
-       * Format: date
-       * @description Estimated local departure date; historical dates permitted. No actual-departure ordering rule.
-       */
-      expectedDepartureDate?: string | null;
-      notes?: string | null;
+    schemas: {
+        /**
+         * @description DRAFT_DATA is the initial status (called DRAFT in the older master plan). Transitions require a future explicit workflow command; status is never client-writable in Phase 1.
+         * @enum {string}
+         */
+        ProjectStatus: "DRAFT_DATA" | "IN_PROGRESS" | "READY_FOR_DRAFT_REVIEW" | "DRAFT_REVIEWED" | "AWAITING_EXTERNAL_ISSUANCE" | "OFFICIAL_DOCUMENTS_RECEIVED" | "COMPLETE" | "ARCHIVED";
+        CreateProjectRequest: {
+            /** @description Trim outer whitespace before validation; store uppercase. Globally unique, including archived projects. ASCII operational reference; no internal spaces. */
+            reference: string;
+            /** Format: uuid */
+            exporterId?: string | null;
+            /** @default [] */
+            producerIds: string[];
+            /** Format: uuid */
+            consigneeId?: string | null;
+            /** Format: uuid */
+            notifyPartyId?: string | null;
+            /** Format: uuid */
+            freightForwarderId?: string | null;
+            /** Format: uuid */
+            shippingLineId?: string | null;
+            /** @description ISO 3166-1 alpha-2, uppercase. Format validated now; code-set validation at service boundary. */
+            destinationCountryCode?: string | null;
+            /** Format: uuid */
+            portOfLoadingId?: string | null;
+            /** Format: uuid */
+            portOfDischargeId?: string | null;
+            /**
+             * Format: date
+             * @description Estimated local departure date; historical dates permitted. No actual-departure ordering rule.
+             */
+            expectedDepartureDate?: string | null;
+            notes?: string | null;
+        };
+        /** @description Partial update: omitted means unchanged; explicit null clears a nullable field. reference and producerIds cannot be null. producerIds replaces the entire set; [] clears it. Version-only request is a no-op (no revision/audit change). Atomic compare-and-swap; stale expectedVersion returns 409. Status is not writable. */
+        UpdateProjectRequest: {
+            /** Format: int64 */
+            expectedVersion: number;
+            /** @description Trim outer whitespace before validation; store uppercase. Globally unique, including archived projects. ASCII operational reference; no internal spaces. */
+            reference?: string;
+            /** Format: uuid */
+            exporterId?: string | null;
+            producerIds?: string[];
+            /** Format: uuid */
+            consigneeId?: string | null;
+            /** Format: uuid */
+            notifyPartyId?: string | null;
+            /** Format: uuid */
+            freightForwarderId?: string | null;
+            /** Format: uuid */
+            shippingLineId?: string | null;
+            /** @description ISO 3166-1 alpha-2, uppercase. Format validated now; code-set validation at service boundary. */
+            destinationCountryCode?: string | null;
+            /** Format: uuid */
+            portOfLoadingId?: string | null;
+            /** Format: uuid */
+            portOfDischargeId?: string | null;
+            /**
+             * Format: date
+             * @description Estimated local departure date; historical dates permitted. No actual-departure ordering rule.
+             */
+            expectedDepartureDate?: string | null;
+            notes?: string | null;
+        };
+        ProjectResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            version: number;
+            status: components["schemas"]["ProjectStatus"];
+            /** @description Trim outer whitespace before validation; store uppercase. Globally unique, including archived projects. ASCII operational reference; no internal spaces. */
+            reference: string;
+            /** Format: uuid */
+            exporterId: string | null;
+            producerIds: string[];
+            /** Format: uuid */
+            consigneeId: string | null;
+            /** Format: uuid */
+            notifyPartyId: string | null;
+            /** Format: uuid */
+            freightForwarderId: string | null;
+            /** Format: uuid */
+            shippingLineId: string | null;
+            /** @description ISO 3166-1 alpha-2, uppercase. Format validated now; code-set validation at service boundary. */
+            destinationCountryCode: string | null;
+            /** Format: uuid */
+            portOfLoadingId: string | null;
+            /** Format: uuid */
+            portOfDischargeId: string | null;
+            /**
+             * Format: date
+             * @description Estimated local departure date; historical dates permitted. No actual-departure ordering rule.
+             */
+            expectedDepartureDate: string | null;
+            notes: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ProjectPage: {
+            items: components["schemas"]["ProjectResponse"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            totalElements: number;
+            totalPages: number;
+        };
+        Problem: {
+            /** Format: uri */
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            /** Format: uri-reference */
+            instance?: string;
+            errors?: {
+                field: string;
+                code: string;
+                message: string;
+            }[];
+        };
     };
-    /** @description Partial update: omitted means unchanged; explicit null clears a nullable field. reference and producerIds cannot be null. producerIds replaces the entire set; [] clears it. Version-only request is a no-op (no revision/audit change). Atomic compare-and-swap; stale expectedVersion returns 409. Status is not writable. */
-    UpdateProjectRequest: {
-      /** Format: int64 */
-      expectedVersion: number;
-      /** @description Trim outer whitespace before validation; store uppercase. Globally unique, including archived projects. ASCII operational reference; no internal spaces. */
-      reference?: string;
-      /** Format: uuid */
-      exporterId?: string | null;
-      producerIds?: string[];
-      /** Format: uuid */
-      consigneeId?: string | null;
-      /** Format: uuid */
-      notifyPartyId?: string | null;
-      /** Format: uuid */
-      freightForwarderId?: string | null;
-      /** Format: uuid */
-      shippingLineId?: string | null;
-      /** @description ISO 3166-1 alpha-2, uppercase. Format validated now; code-set validation at service boundary. */
-      destinationCountryCode?: string | null;
-      /** Format: uuid */
-      portOfLoadingId?: string | null;
-      /** Format: uuid */
-      portOfDischargeId?: string | null;
-      /**
-       * Format: date
-       * @description Estimated local departure date; historical dates permitted. No actual-departure ordering rule.
-       */
-      expectedDepartureDate?: string | null;
-      notes?: string | null;
-    };
-    ProjectResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: int64 */
-      version: number;
-      status: components['schemas']['ProjectStatus'];
-      /** @description Trim outer whitespace before validation; store uppercase. Globally unique, including archived projects. ASCII operational reference; no internal spaces. */
-      reference: string;
-      /** Format: uuid */
-      exporterId: string | null;
-      producerIds: string[];
-      /** Format: uuid */
-      consigneeId: string | null;
-      /** Format: uuid */
-      notifyPartyId: string | null;
-      /** Format: uuid */
-      freightForwarderId: string | null;
-      /** Format: uuid */
-      shippingLineId: string | null;
-      /** @description ISO 3166-1 alpha-2, uppercase. Format validated now; code-set validation at service boundary. */
-      destinationCountryCode: string | null;
-      /** Format: uuid */
-      portOfLoadingId: string | null;
-      /** Format: uuid */
-      portOfDischargeId: string | null;
-      /**
-       * Format: date
-       * @description Estimated local departure date; historical dates permitted. No actual-departure ordering rule.
-       */
-      expectedDepartureDate: string | null;
-      notes: string | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    ProjectPage: {
-      items: components['schemas']['ProjectResponse'][];
-      page: number;
-      size: number;
-      /** Format: int64 */
-      totalElements: number;
-      totalPages: number;
-    };
-    Problem: {
-      /** Format: uri */
-      type: string;
-      title: string;
-      status: number;
-      detail?: string;
-      /** Format: uri-reference */
-      instance?: string;
-      errors?: {
-        field: string;
-        code: string;
-        message: string;
-      }[];
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  listProjects: {
-    parameters: {
-      query?: {
-        page?: number;
-        size?: number;
-        status?: components['schemas']['ProjectStatus'];
-        q?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
+    listProjects: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                status?: components["schemas"]["ProjectStatus"];
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page; totalPages is 0 when empty. Filters combine with AND. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectPage"];
+                };
+            };
+            /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Insufficient role/project access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Page; totalPages is 0 when empty. Filters combine with AND. */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    createProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['ProjectPage'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectRequest"];
+            };
         };
-      };
-      /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Created; version 0. */
+            201: {
+                headers: {
+                    /** @description /api/projects/{id} */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Insufficient role/project access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Duplicate reference or stale expectedVersion. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown/inactive organization or port, or incompatible organization role. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Authentication required. */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Insufficient role/project access. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
     };
-  };
-  createProject: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    getProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project with every optional response field present as null or []. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Insufficient role/project access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Project does not exist or is not visible to the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateProjectRequest'];
-      };
+    updateProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved; version increments once for an effective change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Insufficient role/project access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Project does not exist or is not visible to the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Duplicate reference or stale expectedVersion. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown/inactive organization or port, or incompatible organization role. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Created; version 0. */
-      201: {
-        headers: {
-          /** @description /api/projects/{id} */
-          Location?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProjectResponse'];
-        };
-      };
-      /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Authentication required. */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Insufficient role/project access. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Duplicate reference or stale expectedVersion. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Unknown/inactive organization or port, or incompatible organization role. */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-    };
-  };
-  getProject: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Project with every optional response field present as null or []. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProjectResponse'];
-        };
-      };
-      /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Authentication required. */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Insufficient role/project access. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Project does not exist or is not visible to the caller. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-    };
-  };
-  updateProject: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateProjectRequest'];
-      };
-    };
-    responses: {
-      /** @description Saved; version increments once for an effective change. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ProjectResponse'];
-        };
-      };
-      /** @description Malformed JSON, unknown field, invalid UUID/date/field or invalid pagination. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Authentication required. */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Insufficient role/project access. */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Project does not exist or is not visible to the caller. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Duplicate reference or stale expectedVersion. */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Unknown/inactive organization or port, or incompatible organization role. */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-    };
-  };
 }

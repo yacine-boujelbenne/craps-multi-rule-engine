@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URI;
 import java.util.Set;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
@@ -45,5 +46,28 @@ public class OrganizationController {
         @RequestBody JsonNode body, @RequestParam MultiValueMap<String, String> query) {
         SetupListQuery.rejectUnknown(query, Set.of());
         return service.patch(id, parser.parse(body, true));
+    }
+
+    @GetMapping("/{organizationId}/addresses")
+    public List<OrganizationDtos.AddressResponse> addresses(@PathVariable UUID organizationId,
+        @RequestParam MultiValueMap<String, String> query) {
+        SetupListQuery.rejectUnknown(query, Set.of());
+        return service.addresses(organizationId);
+    }
+
+    @PostMapping("/{organizationId}/addresses")
+    public ResponseEntity<OrganizationDtos.AddressResponse> createAddress(@PathVariable UUID organizationId,
+        @RequestBody JsonNode body, @RequestParam MultiValueMap<String, String> query) {
+        SetupListQuery.rejectUnknown(query, Set.of());
+        var response = service.createAddress(organizationId, parser.address(body, false));
+        return ResponseEntity.created(URI.create("/api/organizations/" + organizationId + "/addresses/" + response.id()))
+            .body(response);
+    }
+
+    @PatchMapping("/{organizationId}/addresses/{addressId}")
+    public OrganizationDtos.AddressResponse patchAddress(@PathVariable UUID organizationId, @PathVariable UUID addressId,
+        @RequestBody JsonNode body, @RequestParam MultiValueMap<String, String> query) {
+        SetupListQuery.rejectUnknown(query, Set.of());
+        return service.patchAddress(organizationId, addressId, parser.address(body, true));
     }
 }

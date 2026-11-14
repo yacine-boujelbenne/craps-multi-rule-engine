@@ -1,0 +1,124 @@
+<div class="actions">
+  <a [routerLink]="['/projects', id]">Back to shipment</a>
+  <button type="button" (click)="load()" [disabled]="saving()">Reload saved data</button>
+  <button
+    type="button"
+    (click)="print()"
+    [disabled]="loading() || !!error() || dirty() || pendingDetails() > 0"
+  >
+    Print / Save as PDF
+  </button>
+</div>
+<h1>Shipment information — {{ project()?.reference }}</h1>
+<p>Internal shipment summary — not an official certificate or carrier document.</p>
+@if (dirty()) {
+  <p class="actions">Save each edited section before printing.</p>
+}
+@if (loading()) {
+  <p>Loading shipment…</p>
+}
+@if (error()) {
+  <p role="alert">{{ error() }}</p>
+}
+@if (forms(); as form) {
+  <section>
+    <h2>Shipment and companies</h2>
+    <p class="actions">Shared information is maintained in shipment setup and company records.</p>
+    <dl>
+      @for (item of summary(); track item.label) {
+        <div>
+          <dt>{{ item.label }}</dt>
+          <dd>{{ item.value }}</dd>
+        </div>
+      }
+    </dl>
+  </section>
+  <section>
+    <h2>Company details</h2>
+    @for (company of companyDetails(); track company.name) {
+      <article>
+        <h3>{{ company.name }}</h3>
+        @for (detail of company.details; track $index) {
+          <p>{{ detail }}</p>
+        }
+      </article>
+    }
+  </section>
+  <section>
+    <h2>Products — invoice and packing list</h2>
+    <p class="actions">Quantities, grades and prices are maintained in shipment products.</p>
+    @for (line of lines(); track line.id) {
+      <article>
+        <strong>{{ productNames()[line.productId] ?? line.productId }}</strong>
+        <p>
+          Grade: {{ line.appliedGradeName ?? '—' }} · Cartons: {{ line.cartonCount ?? '—' }} ·
+          Quantity: {{ line.quantity ?? '—' }} {{ line.quantityUnit }}
+        </p>
+        <p>
+          Net: {{ line.netWeightKg ?? '—' }} kg · Gross: {{ line.grossWeightKg ?? '—' }} kg · Price:
+          {{ line.unitPrice ?? '—' }} {{ line.currency }}
+        </p>
+        <p>
+          Lot: {{ line.lotReference ?? '—' }} · Processing: {{ line.processingInformation ?? '—' }}
+        </p>
+      </article>
+    } @empty {
+      <p>No shipment products recorded.</p>
+    }
+  </section>
+  @for (section of form.sections; track section.key) {
+    <section [id]="section.key">
+      <h2>{{ section.title }}</h2>
+      @for (row of form.data[section.key]; track $index; let rowIndex = $index) {
+        <article>
+          <div class="fields">
+            @for (field of section.fields; track field.key) {
+              <label
+                ><span>{{ field.label }}</span>
+                @if (field.type === 'country') {
+                  <select
+                    class="editor"
+                    [ngModel]="row[field.key] ?? ''"
+                    (ngModelChange)="row[field.key] = $event; mark(section.key)"
+                    [disabled]="!canEdit(section.key) || saving()"
+                  >
+                    <option value="">Choose a country</option>
+                    @for (country of countries(); track country.code) {
+                      <option [value]="country.code">{{ country.name }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input
+                    class="editor"
+                    [type]="field.type === 'date' ? 'date' : 'text'"
+                    [attr.inputmode]="field.type === 'decimal' ? 'decimal' : null"
+                    [ngModel]="row[field.key] ?? ''"
+                    (ngModelChange)="row[field.key] = $event; mark(section.key)"
+                    [disabled]="!canEdit(section.key) || saving()"
+                    maxlength="2000"
+                  />
+                }
+                <span class="printed">{{ row[field.key] || '—' }}</span>
+              </label>
+            }
+          </div>
+          @if (section.repeatable && canEdit(section.key)) {
+            <button class="actions" type="button" (click)="remove(section.key, rowIndex)">
+              Remove record
+            </button>
+          }
+        </article>
+      }
+      @if (canEdit(section.key)) {
+        <div class="actions">
+          @if (section.repeatable) {
+            <button type="button" (click)="add(section.key)">Add record</button>
+          }
+          <button type="button" (click)="save(section.key)" [disabled]="saving()">
+            Save {{ section.title }}
+          </button>
+        </div>
+      }
+    </section>
+  }
+}

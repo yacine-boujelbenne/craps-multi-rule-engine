@@ -16,6 +16,7 @@ export interface CatalogListQuery {
   size?: number;
   q?: string;
   includeInactive?: boolean;
+  categoryId?: string;
 }
 
 /**

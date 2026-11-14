@@ -28,6 +28,14 @@
     </div>
   </div>
 } @else {
+  <details class="panel">
+    <summary>Add a port to the directory</summary>
+    <label>Port name <input #portName class="control" maxlength="200" /></label>
+    <label>Country <select #portCountry class="control"><option value="">Choose a country</option>
+      @for (country of countries(); track country.code) { <option [value]="country.code">{{ country.name }}</option> }
+    </select></label>
+    <button type="button" class="btn" (click)="addPort(portName.value,portCountry.value)" [disabled]="savingPort()">Save port</button>
+  </details>
   <form #projectForm class="project-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
     <div class="project-form__sections">
       <app-panel
@@ -73,7 +81,7 @@
       >
         <div class="partners">
           <div class="field">
-            <label class="field__label" for="exporterId">Exporter <span class="req">*</span></label>
+            <label class="field__label" for="exporterId">Exporter </label>
             <select
               id="exporterId"
               class="control"
@@ -92,7 +100,7 @@
 
           <div class="field">
             <label class="field__label" for="producerIds">
-              Producers <span class="req">*</span>
+              Producers
             </label>
             <select
               id="producerIds"
@@ -118,7 +126,7 @@
 
           <div class="field">
             <label class="field__label" for="consigneeId">
-              Consignee <span class="req">*</span>
+              Consignee
             </label>
             <select
               id="consigneeId"
@@ -189,7 +197,7 @@
         <div class="routing">
           <div class="field">
             <label class="field__label" for="destinationCountryCode">
-              Destination country <span class="req">*</span>
+              Destination country
             </label>
             <select
               id="destinationCountryCode"
@@ -209,7 +217,7 @@
 
           <div class="field">
             <label class="field__label" for="portOfLoadingId">
-              Port of loading <span class="req">*</span>
+              Port of loading
             </label>
             <select
               id="portOfLoadingId"
@@ -229,7 +237,7 @@
 
           <div class="field">
             <label class="field__label" for="portOfDischargeId">
-              Port of discharge <span class="req">*</span>
+              Port of discharge
             </label>
             <select
               id="portOfDischargeId"

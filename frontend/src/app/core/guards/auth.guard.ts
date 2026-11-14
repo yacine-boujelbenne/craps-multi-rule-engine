@@ -76,6 +76,25 @@ export const adminGuard: CanActivateFn = (_route, state) => {
   );
 };
 
+/** Requires ADMIN or OPERATOR for shared master-data screens. */
+export const masterDataGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthStore);
+  const router = inject(Router);
+  return auth.bootstrap().pipe(
+    map((user) => {
+      if (!user) {
+        return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+      }
+      if (user.mustChangePassword) {
+        return router.createUrlTree(['/change-password']);
+      }
+      return user.roles.includes('ADMIN') || user.roles.includes('OPERATOR')
+        ? true
+        : router.createUrlTree(['/dashboard']);
+    }),
+  );
+};
+
 /**
  * Allows editing a project's setup only when the current user may edit
  * PROJECT_SETUP (admins always may). Reads the effective permission set from

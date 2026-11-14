@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -63,11 +65,65 @@ class CommercialSetupApiIT {
     UUID admin, operator;
     @BeforeEach
     void fixtures() {
-        jdbc.execute("TRUNCATE project, organization, product, app_user, audit_log CASCADE");
+        jdbc.execute("TRUNCATE project, organization, product, product_taxonomy_category, app_user, city, audit_log CASCADE");
         admin = user("admin", "ADMIN");
         operator = user("operator", "OPERATOR");
         user("viewer", "VIEWER");
         user("reviewer", "REVIEWER");
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void geographyReadsFilterCountryAndActiveRowsWithStableLiteralPrefixPagesWithoutWrites() throws Exception {
+        UUID first = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID second = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        jdbc.update("INSERT INTO city(id,country_code,name) VALUES (?,'TN','Alpha'),(?,'TN','alpha'),"
+            + "(?,'TN','Beta'),(?,'TN','A_!%'),(?,'FR','Alpha')", first, second,
+            UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        jdbc.update("INSERT INTO city(country_code,name,active) VALUES ('TN','A inactive',false)");
+        var project = create("/api/projects", "{\"reference\":\"geography-read\"}");
+        UUID projectId = UUID.fromString(project.path("id").asText());
+        long version = project.path("version").asLong();
+        long auditCount = audits();
+        var countries = read("/api/countries", "viewer");
+        assertThat(countries).hasSize(249);
+        List<String> expectedCodes = jdbc.queryForList(
+            "SELECT code FROM country WHERE active ORDER BY lower(name),code", String.class);
+        assertThat(countries.findValuesAsText("code")).containsExactlyElementsOf(expectedCodes);
+        for (String role : List.of("admin", "operator", "viewer", "reviewer")) {
+            var page = read("/api/countries/TN/cities?q=AL&page=0&size=1", role);
+            assertThat(page.path("items").get(0).path("id").asText()).isEqualTo(first.toString());
+            assertThat(page.path("items").get(0).path("countryCode").asText()).isEqualTo("TN");
+            assertThat(page.path("totalElements").asLong()).isEqualTo(2);
+            assertThat(page.path("totalPages").asInt()).isEqualTo(2);
+            assertThat(page.path("page").asInt()).isZero();
+            assertThat(page.path("size").asInt()).isEqualTo(1);
+        }
+        var next = read("/api/countries/TN/cities?q=al&page=1&size=1", "operator");
+        assertThat(next.path("items").get(0).path("id").asText()).isEqualTo(second.toString());
+        var literalResult = mvc.perform(get("/api/countries/TN/cities").with(account("operator"))
+            .queryParam("q", " A_!% ")).andReturn();
+        status(literalResult, 200);
+        assertThat(body(literalResult).path("items")).hasSize(1);
+        assertThat(body(literalResult).path("items").get(0).path("name").asText()).isEqualTo("A_!%");
+        var all = read("/api/countries/TN/cities", "viewer");
+        assertThat(all.path("items")).hasSize(4);
+        assertThat(all.path("items").findValuesAsText("name")).containsExactly("A_!%", "Alpha", "alpha", "Beta");
+        for (String suffix : List.of("?q=no-match", "?q=Alpha&page=2&size=1")) {
+            var empty = read("/api/countries/TN/cities" + suffix, "viewer");
+            assertThat(empty.path("items")).isEmpty();
+        }
+        var noMatches = read("/api/countries/DE/cities", "viewer");
+        assertThat(noMatches.path("totalElements").asLong()).isZero();
+        assertThat(noMatches.path("totalPages").asInt()).isZero();
+        problem(mvc.perform(get("/api/countries/ZZ/cities").with(account("viewer"))).andReturn(),
+            404, "countryCode");
+        jdbc.update("UPDATE country SET active=false WHERE code='TN'");
+        assertThat(read("/api/countries", "viewer").findValuesAsText("code")).doesNotContain("TN");
+        problem(mvc.perform(get("/api/countries/TN/cities").with(account("viewer"))).andReturn(),
+            404, "countryCode");
+        assertThat(audits()).isEqualTo(auditCount);
+        assertThat(jdbc.queryForObject("SELECT version FROM project WHERE id=?", Long.class, projectId)).isEqualTo(version);
     }
 
     @Test
@@ -160,7 +216,7 @@ class CommercialSetupApiIT {
     }
 
     @Test
-    void nonadminsReadAndCannotChangeAnyMasterDataEvenWithFormGrants() throws Exception {
+    void readOnlyRolesCannotWriteAndOperatorMetadataAccessDoesNotGrantGradeWrites() throws Exception {
         var org = organization();
         var p = product("P");
         String grades = "/api/products/" + p.path("id").asText() + "/grades";
@@ -175,16 +231,189 @@ class CommercialSetupApiIT {
                 "/api/products/" + p.path("id").asText(),
                 grades + "/" + g.path("id").asText())) status(mvc.perform(get(route).with(account(role))).andReturn(),
                 200);
-            problem(write(post("/api/organizations"), "{\"legalName\":\"New\",\"roles\":[\"CLIENT\"]}", role), 403, null);
-            problem(write(post("/api/products"), "{\"code\":\"NEW\",\"name\":\"New\"}", role), 403, null);
+            if (!role.equals("operator")) {
+                problem(write(post("/api/organizations"), "{\"legalName\":\"New\",\"roles\":[\"CLIENT\"]}", role), 403, null);
+                problem(write(patch("/api/organizations/" + org.path("id").asText()),
+                    "{\"expectedVersion\":0,\"active\":false}", role), 403, null);
+                problem(write(post("/api/products"), "{\"code\":\"NEW\",\"name\":\"New\"}", role), 403, null);
+                problem(write(patch("/api/products/" + p.path("id").asText()),
+                    "{\"expectedVersion\":0,\"active\":false}", role), 403, null);
+            }
             problem(write(post(grades), "{\"code\":\"NEW\",\"name\":\"New\"}", role), 403, null);
-            for (String route : List.of("/api/organizations/" + org.path("id").asText(),
-                "/api/products/" + p.path("id").asText(),
-                grades + "/" + g.path("id").asText())) problem(write(patch(route),
+            problem(write(patch(grades + "/" + g.path("id").asText()),
                 "{\"expectedVersion\":0,\"active\":false}", role), 403, null);
         }
         assertThat(audits()).isEqualTo(before);
     }
+
+    @Test
+    void operatorCompanyMetadataPersistsListsAndClearsWithoutAffectingProjectVersions() throws Exception {
+        String input = """
+            {"legalName":"Carrier","countryCode":"TN","addressText":"Legacy","registrationNumber":"REG",
+             "roles":["CARRIER","SHIPPING_LINE"],"tradeName":" Trade ","taxIdentifier":" TAX ",
+             "email":" Sales@example.test ","phone":" +216 00123456 "}
+            """;
+        var created = write(post("/api/organizations"), input, "operator");
+        status(created, 201);
+        var company = body(created);
+        String route = "/api/organizations/" + company.path("id").asText();
+        var project = create("/api/projects", "{\"reference\":\"company-metadata\"}");
+        long before = audits();
+        var stored = read(route, "viewer");
+        assertThat(stored.path("tradeName").asText()).isEqualTo("Trade");
+        assertThat(stored.path("taxIdentifier").asText()).isEqualTo("TAX");
+        assertThat(stored.path("email").asText()).isEqualTo("Sales@example.test");
+        assertThat(stored.path("phone").asText()).isEqualTo("+216 00123456");
+        var page = read("/api/organizations?role=CARRIER", "reviewer");
+        assertThat(page.path("totalElements").asInt()).isEqualTo(1);
+        assertThat(page.path("items").get(0)).isEqualTo(stored);
+        var noop = write(patch(route), "{\"expectedVersion\":0,\"tradeName\":\" Trade \"}", "operator");
+        status(noop, 200);
+        assertThat(body(noop).path("version").asLong()).isZero();
+        assertThat(audits()).isEqualTo(before);
+        var changed = write(patch(route), "{\"expectedVersion\":0,\"email\":null,\"phone\":\" \"}", "operator");
+        status(changed, 200);
+        assertThat(body(changed).path("version").asLong()).isEqualTo(1);
+        assertThat(body(changed).path("email").isNull()).isTrue();
+        assertThat(body(changed).path("phone").isNull()).isTrue();
+        for (String field : List.of("tradeName", "taxIdentifier", "legalName", "countryCode", "addressText", "registrationNumber", "roles")) {
+            assertThat(body(changed).get(field)).isEqualTo(stored.get(field));
+        }
+        assertThat(audits()).isEqualTo(before + 1);
+        assertThat(jdbc.queryForObject("SELECT actor_id FROM audit_log WHERE entity_table='organization' AND entity_id=? ORDER BY occurred_at DESC LIMIT 1",
+            UUID.class, company.path("id").asText())).isEqualTo(operator);
+        problem(write(patch(route), "{\"expectedVersion\":0,\"tradeName\":\"Stale\"}", "operator"), 409, "expectedVersion");
+        assertThat(read("/api/projects/" + project.path("id").asText(), "admin").path("version")).isEqualTo(project.path("version"));
+        assertThat(audits()).isEqualTo(before + 1);
+        String projectRoute = "/api/projects/" + project.path("id").asText();
+        var carrierOnly = create("/api/organizations", "{\"legalName\":\"Carrier only\",\"roles\":[\"CARRIER\"]}");
+        problem(write(patch(projectRoute), "{\"expectedVersion\":0,\"shippingLineId\":\""
+            + carrierOnly.path("id").asText() + "\"}", "admin"), 422, "shippingLineId");
+        status(write(patch(projectRoute), "{\"expectedVersion\":0,\"shippingLineId\":\""
+            + company.path("id").asText() + "\"}", "admin"), 200);
+        long beforeRejectedRemoval = audits();
+        problem(write(patch(route), "{\"expectedVersion\":1,\"roles\":[\"CARRIER\"]}", "operator"), 409, "roles");
+        assertThat(read(route, "viewer").path("roles")).isEqualTo(stored.path("roles"));
+        assertThat(read(route, "viewer").path("version").asLong()).isEqualTo(1);
+        assertThat(audits()).isEqualTo(beforeRejectedRemoval);
+    }
+
+    @Test
+    void structuredAddressesPersistEmbedAndVersionIndependentlyOfCompanyAndProject() throws Exception {
+        var company = create("/api/organizations", """
+            {"legalName":"Address company","addressText":"Legacy address","roles":["CLIENT"]}
+            """);
+        String companyRoute = "/api/organizations/" + company.path("id").asText();
+        String addresses = companyRoute + "/addresses";
+        var project = create("/api/projects", "{\"reference\":\"ADDRESS-TEST\"}");
+        UUID city = UUID.randomUUID();
+        jdbc.update("INSERT INTO city(id,country_code,name) VALUES (?,'TN',?)", city, "City " + city);
+        long before = audits();
+        var created = write(post(addresses), """
+            {"kind":"BUSINESS","countryCode":"TN","manualCity":" Tunis ","addressLine1":" Road 1 ",
+             "postalCode":"00123","expectedOrganizationVersion":0}
+            """, "operator");
+        status(created, 201);
+        var address = body(created);
+        String route = addresses + "/" + address.path("id").asText();
+        assertThat(created.getResponse().getHeader("Location")).isEqualTo(route);
+        assertThat(address.path("version").asLong()).isZero();
+        assertThat(address.path("postalCode").asText()).isEqualTo("00123");
+        assertThat(address.path("manualCity").asText()).isEqualTo("Tunis");
+        for (String role : List.of("admin", "operator", "viewer", "reviewer")) {
+            assertThat(read(addresses, role).get(0)).isEqualTo(address);
+        }
+        assertThat(read(companyRoute, "viewer").path("addresses").get(0)).isEqualTo(address);
+        assertThat(read("/api/organizations?role=CLIENT", "reviewer").path("items").get(0).path("addresses").get(0))
+            .isEqualTo(address);
+        assertThat(audits()).isEqualTo(before + 1);
+        var changed = write(patch(route), "{\"expectedVersion\":0,\"addressLine2\":\" Suite 2 \",\"postalCode\":null}", "operator");
+        status(changed, 200);
+        assertThat(body(changed).path("version").asLong()).isEqualTo(1);
+        assertThat(body(changed).path("postalCode").isNull()).isTrue();
+        assertThat(body(changed).path("addressLine2").asText()).isEqualTo("Suite 2");
+        status(write(patch(route), "{\"expectedVersion\":1,\"addressLine1\":\" Road 1 \"}", "operator"), 200);
+        assertThat(audits()).isEqualTo(before + 2);
+        problem(write(patch(route), "{\"expectedVersion\":0,\"addressLine1\":\"Stale\"}", "admin"), 409, "expectedVersion");
+        problem(write(patch(route), "{\"expectedVersion\":1,\"cityId\":\"" + city + "\"}", "operator"), 400, "manualCity");
+        var switched = write(patch(route), "{\"expectedVersion\":1,\"manualCity\":null,\"cityId\":\"" + city + "\"}", "operator");
+        status(switched, 200);
+        assertThat(body(switched).path("version").asLong()).isEqualTo(2);
+        assertThat(body(switched).path("manualCity").isNull()).isTrue();
+        status(write(patch(route), "{\"expectedVersion\":2,\"active\":false}", "admin"), 200);
+        var billing = write(post(addresses), """
+            {"kind":"BILLING","countryCode":"TN","manualCity":"Tunis","addressLine1":"Billing road"}
+            """, "admin");
+        status(billing, 201);
+        var ordered = read(addresses, "viewer");
+        assertThat(ordered.findValuesAsText("kind")).containsExactly("BILLING", "BUSINESS");
+        assertThat(ordered.get(1).path("active").asBoolean()).isFalse();
+        var other = organization();
+        problem(write(patch("/api/organizations/" + other.path("id").asText() + "/addresses/" + address.path("id").asText()),
+            "{\"expectedVersion\":3}", "admin"), 404, "addressId");
+        for (String role : List.of("viewer", "reviewer")) {
+            problem(write(post(addresses), "{\"kind\":\"OTHER\",\"countryCode\":\"TN\",\"manualCity\":\"Tunis\",\"addressLine1\":\"Road\"}", role), 403, null);
+            problem(write(patch(route), "{\"expectedVersion\":3,\"active\":true}", role), 403, null);
+        }
+        var parent = read(companyRoute, "admin");
+        assertThat(parent.path("version")).isEqualTo(company.path("version"));
+        assertThat(parent.path("addressText").asText()).isEqualTo("Legacy address");
+        assertThat(read("/api/projects/" + project.path("id").asText(), "admin").path("version")).isEqualTo(project.path("version"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_log WHERE entity_table='organization_address' AND actor_id=? AND actor_kind='USER' AND request_id IS NOT NULL",
+            Long.class, operator)).isEqualTo(3);
+        problem(mvc.perform(get("/api/organizations/" + UUID.randomUUID() + "/addresses").with(account("viewer"))).andReturn(), 404, null);
+    }
+
+    @Test
+    void addressLocationChangesRejectInvalidReferencesButPreserveHistoricalInactiveLocations() throws Exception {
+        var company = organization();
+        String addresses = "/api/organizations/" + company.path("id").asText() + "/addresses";
+        UUID city = UUID.randomUUID(), otherCountryCity = UUID.randomUUID(), inactiveCity = UUID.randomUUID();
+        jdbc.update("INSERT INTO city(id,country_code,name) VALUES (?,'TN',?),(?,'FR',?)", city, "City " + city,
+            otherCountryCity, "City " + otherCountryCity);
+        jdbc.update("INSERT INTO city(id,country_code,name,active) VALUES (?,'TN',?,false)", inactiveCity, "City " + inactiveCity);
+        long before = audits();
+        String input = "{\"kind\":\"BUSINESS\",\"countryCode\":\"TN\",\"cityId\":\"" + city + "\",\"addressLine1\":\"Road\"}";
+        for (UUID invalidCity : List.of(otherCountryCity, inactiveCity, UUID.randomUUID())) {
+            var invalid = json.readTree(input);
+            ((com.fasterxml.jackson.databind.node.ObjectNode) invalid).put("cityId", invalidCity.toString());
+            problem(write(post(addresses), invalid.toString(), "admin"), 400, "cityId");
+        }
+        problem(write(post(addresses), input.replace("TN", "ZZ"), "operator"), 400, "countryCode");
+        problem(write(post(addresses), input.substring(0, input.length() - 1) + ",\"manualCity\":\"Both\"}", "admin"), 400, "manualCity");
+        problem(write(post(addresses), "{\"kind\":\"OTHER\",\"countryCode\":\"TN\",\"addressLine1\":\"Road\"}", "admin"), 400, "manualCity");
+        problem(write(post(addresses), input.substring(0, input.length() - 1) + ",\"expectedOrganizationVersion\":1}", "admin"), 409, "expectedOrganizationVersion");
+        assertThat(audits()).isEqualTo(before);
+        var result = write(post(addresses), input, "operator");
+        status(result, 201);
+        String route = addresses + "/" + body(result).path("id").asText();
+        jdbc.update("UPDATE city SET active=false WHERE id=?", city);
+        jdbc.update("UPDATE country SET active=false WHERE code='TN'");
+        try {
+            long beforeHistoricalEdit = audits();
+            var historical = write(patch(route), "{\"expectedVersion\":0,\"addressLine1\":\"Updated\"}", "operator");
+            status(historical, 200);
+            assertThat(body(historical).path("cityId").asText()).isEqualTo(city.toString());
+            assertThat(body(historical).path("version").asLong()).isEqualTo(1);
+            status(write(patch(route), "{\"expectedVersion\":1,\"countryCode\":\"TN\",\"cityId\":\"" + city + "\"}", "operator"), 200);
+            assertThat(audits()).isEqualTo(beforeHistoricalEdit + 1);
+            problem(write(post(addresses), input, "admin"), 400, "countryCode");
+            problem(write(patch(route), "{\"expectedVersion\":1,\"cityId\":null,\"manualCity\":\"New\"}", "operator"), 400, "countryCode");
+            jdbc.update("UPDATE country SET active=true WHERE code='TN'");
+            problem(write(post(addresses), input, "admin"), 400, "cityId");
+            problem(write(patch(route), "{\"expectedVersion\":1,\"countryCode\":\"FR\"}", "operator"), 400, "cityId");
+            status(write(patch("/api/organizations/" + company.path("id").asText()), "{\"expectedVersion\":0,\"active\":false}", "admin"), 200);
+            status(write(post(addresses), "{\"kind\":\"OTHER\",\"countryCode\":\"TN\",\"manualCity\":\"Manual\",\"addressLine1\":\"Road\"}", "operator"), 201);
+        } finally {
+            jdbc.update("UPDATE country SET active=true WHERE code='TN'");
+        }
+    }
+
+
+
+
+
+
 
     @Test
     void organizationRolesUpdateOnceAndCannotRemoveUsedRole() throws Exception {
@@ -551,6 +780,187 @@ class CommercialSetupApiIT {
 
     private JsonNode product(String code) throws Exception {
         return create("/api/products", "{\"code\":\"" + code + "\",\"name\":\"Fictional product\"}");
+    }
+
+    @Test
+    void operatorProductMetadataKeepsNameAliasesAndGradesRemainAdminOnly() throws Exception {
+        var result = write(post("/api/products"), """
+            {"code":"META","commercialName":" Product ","description":" Description ",
+             "processingMethod":" Frozen ","storageRequirements":" -18 C "}
+            """, "operator");
+        status(result, 201);
+        var product = body(result);
+        String route = "/api/products/" + product.path("id").asText();
+        assertThat(product.path("name").asText()).isEqualTo("Product");
+        assertThat(product.path("commercialName")).isEqualTo(product.path("name"));
+        assertThat(product.path("defaultMeasurementUnit").asText()).isEqualTo("KG");
+        assertThat(product.path("categories")).isEmpty();
+        assertThat(product.path("grades")).isEmpty();
+        var grade = create(route + "/grades", "{\"code\":\"G\",\"name\":\"Grade\",\"defaultPricePerKg\":\"2.5000\",\"defaultCurrency\":\"USD\"}");
+        assertThat(read(route, "viewer").path("grades").get(0).path("id")).isEqualTo(grade.path("id"));
+        long before = audits();
+        status(write(patch(route), "{\"expectedVersion\":0,\"name\":\" Product \",\"commercialName\":\"Product\"}", "operator"), 200);
+        assertThat(audits()).isEqualTo(before);
+        problem(write(patch(route), "{\"expectedVersion\":1,\"description\":\"Stale\"}", "operator"), 409, "expectedVersion");
+        var changed = write(patch(route), "{\"expectedVersion\":0,\"commercialName\":\"Updated\",\"description\":null,\"defaultMeasurementUnit\":\" BOX \"}", "operator");
+        status(changed, 200);
+        assertThat(body(changed).path("version").asLong()).isEqualTo(1);
+        assertThat(body(changed).path("name").asText()).isEqualTo("Updated");
+        assertThat(body(changed).path("commercialName")).isEqualTo(body(changed).path("name"));
+        assertThat(body(changed).path("description").isNull()).isTrue();
+        assertThat(body(changed).path("processingMethod").asText()).isEqualTo("Frozen");
+        assertThat(body(changed).path("storageRequirements").asText()).isEqualTo("-18 C");
+        assertThat(body(changed).path("defaultMeasurementUnit").asText()).isEqualTo("BOX");
+        problem(write(patch(route), "{\"expectedVersion\":1,\"unitPrice\":\"2.0000\"}", "operator"), 400, "unitPrice");
+        problem(write(post(route + "/grades"), "{\"code\":\"OP\",\"name\":\"Forbidden\"}", "operator"), 403, null);
+        problem(write(patch(route + "/grades/" + grade.path("id").asText()), "{\"expectedVersion\":0,\"defaultPricePerKg\":\"9.0000\"}", "operator"), 403, null);
+        status(write(patch(route + "/grades/" + grade.path("id").asText()), "{\"expectedVersion\":0,\"active\":false}", "admin"), 200);
+        assertThat(read(route, "reviewer").path("grades")).isEmpty();
+        assertThat(read(route, "reviewer").path("version").asLong()).isEqualTo(1);
+        var legacy = create("/api/products", "{\"code\":\"LEGACY\",\"name\":\"Legacy\"}");
+        assertThat(legacy.path("commercialName").asText()).isEqualTo("Legacy");
+    }
+
+    @Test
+    void taxonomyAssignmentsVersionOnlyEffectiveSetChangesAndRetainInactiveHistory() throws Exception {
+        String categories = "/api/product-taxonomy-categories";
+        var first = write(post(categories), "{\"code\":\"F_1\",\"name\":\"Beta\",\"description\":\" \"}", "operator");
+        status(first, 201);
+        var beta = body(first);
+        var alpha = create(categories, "{\"code\":\"FX1\",\"name\":\"alpha\"}");
+        String betaRoute = categories + "/" + beta.path("id").asText();
+        problem(write(post(categories), "{\"code\":\"F_1\",\"name\":\"Duplicate\"}", "operator"), 409, "code");
+        assertThat(read(categories + "?q=f_", "viewer").path("totalElements").asLong()).isEqualTo(1);
+        assertThat(read(categories, "reviewer").path("items").findValuesAsText("name")).containsExactly("alpha", "Beta");
+        var product = product("TAX");
+        var project = create("/api/projects", "{\"reference\":\"TAXONOMY-TEST\"}");
+        String productRoute = "/api/products/" + product.path("id").asText();
+        String assignmentRoute = productRoute + "/taxonomy-categories";
+        String ids = "[\"" + beta.path("id").asText() + "\",\"" + alpha.path("id").asText() + "\"]";
+        status(write(put(assignmentRoute), "{\"expectedProductVersion\":0,\"categoryIds\":" + ids + "}", "operator"), 200);
+        assertThat(read(productRoute, "viewer").path("version").asLong()).isEqualTo(1);
+        assertThat(read(productRoute, "viewer").path("categories").findValuesAsText("name")).containsExactly("alpha", "Beta");
+        assertThat(read("/api/products?categoryId=" + beta.path("id").asText(), "viewer").path("items").get(0).path("id"))
+            .isEqualTo(product.path("id"));
+        assertThat(read("/api/products?categoryId=" + UUID.randomUUID(), "viewer").path("items")).isEmpty();
+        long before = audits();
+        String reversed = "[\"" + alpha.path("id").asText() + "\",\"" + beta.path("id").asText() + "\"]";
+        status(write(put(assignmentRoute), "{\"expectedProductVersion\":1,\"categoryIds\":" + reversed + "}", "operator"), 200);
+        assertThat(audits()).isEqualTo(before);
+        problem(write(put(assignmentRoute), "{\"expectedProductVersion\":0,\"categoryIds\":[]}", "operator"), 409, "expectedProductVersion");
+        status(write(patch(betaRoute), "{\"expectedVersion\":0,\"active\":false}", "operator"), 200);
+        assertThat(read(productRoute, "reviewer").path("version").asLong()).isEqualTo(1);
+        assertThat(read(categories, "viewer").path("totalElements").asLong()).isEqualTo(1);
+        assertThat(read(categories + "?includeInactive=true", "admin").path("totalElements").asLong()).isEqualTo(2);
+        problem(mvc.perform(get(categories).queryParam("includeInactive", "true").with(account("operator"))).andReturn(), 403, null);
+        before = audits();
+        status(write(put(assignmentRoute), "{\"expectedProductVersion\":1,\"categoryIds\":" + ids + "}", "operator"), 200);
+        status(write(patch(betaRoute), "{\"expectedVersion\":1,\"description\":null}", "operator"), 200);
+        assertThat(audits()).isEqualTo(before);
+        problem(write(patch(betaRoute), "{\"expectedVersion\":0,\"name\":\"Stale\"}", "operator"), 409, "expectedVersion");
+        status(write(put(assignmentRoute), "{\"expectedProductVersion\":1,\"categoryIds\":[]}", "operator"), 200);
+        assertThat(read(productRoute, "reviewer").path("version").asLong()).isEqualTo(2);
+        before = audits();
+        problem(write(put(assignmentRoute), "{\"expectedProductVersion\":2,\"categoryIds\":[\"" + beta.path("id").asText() + "\"]}", "operator"), 400, "categoryIds");
+        problem(write(put(assignmentRoute), "{\"expectedProductVersion\":2,\"categoryIds\":[\"" + UUID.randomUUID() + "\"]}", "operator"), 400, "categoryIds");
+        for (String role : List.of("viewer", "reviewer")) {
+            problem(write(post(categories), "{\"code\":\"DENIED\",\"name\":\"Denied\"}", role), 403, null);
+            problem(write(patch(betaRoute), "{\"expectedVersion\":1,\"active\":true}", role), 403, null);
+            problem(write(put(assignmentRoute), "{\"expectedProductVersion\":2,\"categoryIds\":[]}", role), 403, null);
+        }
+        assertThat(audits()).isEqualTo(before);
+        assertThat(read(assignmentRoute, "viewer")).isEmpty();
+        assertThat(read("/api/projects/" + project.path("id").asText(), "admin").path("version").asLong()).isZero();
+        problem(write(put("/api/products/" + UUID.randomUUID() + "/taxonomy-categories"),
+            "{\"expectedProductVersion\":0,\"categoryIds\":[]}", "operator"), 404, null);
+    }
+
+    @Test
+    void shipmentProductsSnapshotGradeDefaultsAndVersionOnlyEffectiveChanges() throws Exception {
+        var product = product("SHIPMENT-PRODUCT");
+        var grade = create("/api/products/" + product.path("id").asText() + "/grades",
+            "{\"code\":\"G\",\"name\":\"Grade\",\"defaultCartonNetKg\":\"10.25\",\"defaultPricePerKg\":\"2.5000\",\"defaultCurrency\":\"USD\"}");
+        var project = create("/api/projects", "{\"reference\":\"SHIPMENT-PRODUCTS\"}");
+        String route = "/api/projects/" + project.path("id").asText() + "/products";
+        String productId = product.path("id").asText();
+        String gradeId = grade.path("id").asText();
+        grant(project, "INVOICE");
+        String createBody = "{\"productId\":\"" + productId + "\",\"productCategoryId\":\"" + gradeId
+            + "\",\"expectedProjectVersion\":0,\"cartonCount\":10,\"quantity\":\"25\",\"quantityUnit\":\"KG\","
+            + "\"netWeightKg\":\"20.125\",\"grossWeightKg\":\"22.5\"}";
+        problem(write(post(route), createBody, "operator"), 403, null);
+        grantForm(project, "PACKING_LIST");
+        problem(write(post(route), createBody.replace("}", ",\"unitPrice\":null,\"currency\":null}"), "operator"), 403, null);
+        var created = write(post(route), createBody, "operator");
+        status(created, 201);
+        var line = body(created);
+        assertThat(line.path("version").asLong()).isZero();
+        assertThat(line.path("projectVersion").asLong()).isEqualTo(1);
+        assertThat(line.path("quantity").asText()).isEqualTo("25.000");
+        assertThat(line.path("netWeightKg").asText()).isEqualTo("20.125");
+        assertThat(line.path("appliedGradeVersion").asLong()).isZero();
+        assertThat(line.path("appliedGradeName").asText()).isEqualTo("Grade");
+        assertThat(line.path("appliedCartonNetKg").asText()).isEqualTo("10.250");
+        assertThat(line.path("unitPrice").asText()).isEqualTo("2.5000");
+        assertThat(line.path("currency").asText()).isEqualTo("USD");
+        status(write(patch("/api/products/" + productId + "/grades/" + gradeId),
+            "{\"expectedVersion\":0,\"defaultCartonNetKg\":\"15\",\"defaultPricePerKg\":\"9\",\"defaultCurrency\":\"EUR\"}", "admin"), 200);
+        assertThat(read(route, "operator")).hasSize(1);
+
+        String id = line.path("id").asText();
+        String lineRoute = route + "/" + id;
+        long before = audits();
+        var noop = write(patch(lineRoute), "{\"expectedVersion\":0,\"expectedProjectVersion\":1,\"quantity\":\"25.000\"}", "operator");
+        status(noop, 200);
+        assertThat(audits()).isEqualTo(before);
+        assertThat(body(noop).path("version").asLong()).isZero();
+        var changed = write(patch(lineRoute), "{\"expectedVersion\":0,\"expectedProjectVersion\":1,\"quantity\":\"26\"}", "operator");
+        status(changed, 200);
+        assertThat(body(changed).path("version").asLong()).isEqualTo(1);
+        assertThat(body(changed).path("projectVersion").asLong()).isEqualTo(2);
+        assertThat(body(changed).path("appliedCartonNetKg").asText()).isEqualTo("10.250");
+        assertThat(body(changed).path("unitPrice").asText()).isEqualTo("2.5000");
+        problem(write(patch(lineRoute), "{\"expectedVersion\":0,\"expectedProjectVersion\":2}", "operator"), 409, "expectedVersion");
+        problem(write(patch(lineRoute), "{\"expectedVersion\":1,\"expectedProjectVersion\":1}", "operator"), 409, "expectedProjectVersion");
+        problem(write(patch(lineRoute), "{\"expectedVersion\":1,\"expectedProjectVersion\":2,\"unitPrice\":null,\"currency\":null}", "operator"), 403, null);
+
+        var cleared = write(patch(lineRoute), "{\"expectedVersion\":1,\"expectedProjectVersion\":2,\"productCategoryId\":null}", "admin");
+        status(cleared, 200);
+        assertThat(body(cleared).get("appliedGradeVersion").isNull()).isTrue();
+        assertThat(body(cleared).get("unitPrice").isNull()).isTrue();
+        assertThat(body(cleared).get("quantity").asText()).isEqualTo("26.000");
+        assertThat(body(cleared).path("projectVersion").asLong()).isEqualTo(3);
+        problem(write(patch(lineRoute), "{\"expectedVersion\":2,\"expectedProjectVersion\":3,\"unitPrice\":\"1.23456\",\"currency\":\"USD\"}", "admin"), 400, "unitPrice");
+
+        var priced = write(post(route), "{\"productId\":\"" + productId + "\",\"productCategoryId\":\"" + gradeId
+            + "\",\"expectedProjectVersion\":3,\"unitPrice\":\"3.2500\",\"currency\":\"EUR\"}", "admin");
+        status(priced, 201);
+        assertThat(body(priced).path("unitPrice").asText()).isEqualTo("3.2500");
+        assertThat(body(priced).path("currency").asText()).isEqualTo("EUR");
+        assertThat(body(priced).path("projectVersion").asLong()).isEqualTo(4);
+        assertThat(read("/api/projects/" + project.path("id").asText(), "admin").path("version").asLong()).isEqualTo(4);
+    }
+
+    @Test
+    void shipmentFormsPersistWithAssignmentsRevisionAndAudit() throws Exception {
+        var project=create("/api/projects", "{\"reference\":\"FORMS-1\"}");
+        String route="/api/projects/"+project.path("id").asText()+"/forms";
+        String input="{\"expectedProjectVersion\":0,\"data\":[{\"number\":\"INV-1\",\"date\":\"2026-11-14\"}]}";
+        status(write(put(route+"/INVOICE"),input,"operator"),404);
+        grant(project,"PACKING_LIST");
+        status(write(put(route+"/INVOICE"),input,"operator"),403);
+        grantForm(project,"INVOICE");
+        var saved=write(put(route+"/INVOICE"),input,"operator");
+        status(saved,200);
+        assertThat(body(saved).path("projectVersion").asLong()).isEqualTo(1);
+        assertThat(read(route,"operator").path("data").path("INVOICE").get(0).path("number").asText()).isEqualTo("INV-1");
+        long audits=audits();
+        status(write(put(route+"/INVOICE"),input,"operator"),409);
+        status(write(put(route+"/INVOICE"),input.replace("Version\":0","Version\":1"),"operator"),200);
+        assertThat(audits()).isEqualTo(audits);
+        status(write(put(route+"/INVOICE"),"{\"expectedProjectVersion\":1,\"data\":[{\"unitPrice\":\"5\"}]}","operator"),400);
+        status(write(put(route+"/INVOICE"),"{\"expectedProjectVersion\":1,\"data\":[{\"date\":\"2026-02-30\"}]}","operator"),400);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_log WHERE entity_table='shipment_form' AND actor_id=?",Long.class,operator)).isEqualTo(1);
     }
 
     private JsonNode create(String route, String input) throws Exception {

@@ -15,9 +15,10 @@ import {
   Validators,
 } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import {
   ADDRESS_MAX_LENGTH,
+  EMAIL_MAX_LENGTH,
   LEGAL_NAME_MAX_LENGTH,
   ORGANIZATION_ROLES,
   ORGANIZATION_ROLE_DESCRIPTIONS,
@@ -25,10 +26,29 @@ import {
   Organization,
   OrganizationPage,
   OrganizationRole,
+  PHONE_MAX_LENGTH,
   REGISTRATION_NUMBER_MAX_LENGTH,
+  TAX_IDENTIFIER_MAX_LENGTH,
+  TRADE_NAME_MAX_LENGTH,
   UpdateOrganizationRequest,
 } from '../../../core/models/commercial.model';
+import {
+  Address,
+  AddressKind,
+  ADDRESS_KINDS,
+  ADDRESS_KIND_LABELS,
+  ADDRESS_LINE_MAX_LENGTH,
+  CITY_NAME_MAX_LENGTH,
+  City,
+  normalizePostalCode,
+  nullIfBlank,
+  POSTAL_CODE_MAX_LENGTH,
+} from '../../../core/models/master-data.model';
+import { countryDialCode } from '../../../core/data/country-dial-codes';
 import { isApiProblemError } from '../../../core/models/project.model';
+import { AuthStore } from '../../../core/services/auth.store';
+import { COMPANY_ADDRESS_SERVICE } from '../../../core/services/company-address.service';
+import { GEOGRAPHY_SERVICE } from '../../../core/services/geography.service';
 import { ORGANIZATION_SERVICE } from '../../../core/services/organization.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { trimmedRequired } from '../../../core/utils/validators';
@@ -59,7 +79,12 @@ const PAGE_SIZE = 20;
 export class CompanyListComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly organizations = inject(ORGANIZATION_SERVICE);
+  private readonly addresses = inject(COMPANY_ADDRESS_SERVICE);
+  private readonly geography = inject(GEOGRAPHY_SERVICE);
+  private readonly auth = inject(AuthStore);
   private readonly notifications = inject(NotificationService);
+
+  protected readonly canEdit = computed(() => this.auth.isAdmin() || this.auth.hasRole('OPERATOR'));
 
   protected readonly roles = ORGANIZATION_ROLES;
   protected readonly roleLabels = ORGANIZATION_ROLE_LABELS;
@@ -67,6 +92,15 @@ export class CompanyListComponent implements OnInit {
   protected readonly legalNameMaxLength = LEGAL_NAME_MAX_LENGTH;
   protected readonly registrationMaxLength = REGISTRATION_NUMBER_MAX_LENGTH;
   protected readonly addressMaxLength = ADDRESS_MAX_LENGTH;
+  protected readonly tradeNameMaxLength = TRADE_NAME_MAX_LENGTH;
+  protected readonly taxIdentifierMaxLength = TAX_IDENTIFIER_MAX_LENGTH;
+  protected readonly emailMaxLength = EMAIL_MAX_LENGTH;
+  protected readonly phoneMaxLength = PHONE_MAX_LENGTH;
+  protected readonly addressKinds = ADDRESS_KINDS;
+  protected readonly addressKindLabels = ADDRESS_KIND_LABELS;
+  protected readonly addressLineMaxLength = ADDRESS_LINE_MAX_LENGTH;
+  protected readonly postalCodeMaxLength = POSTAL_CODE_MAX_LENGTH;
+  protected readonly manualCityMaxLength = CITY_NAME_MAX_LENGTH;
 
   protected readonly page = signal<OrganizationPage>({
     items: [],
@@ -84,6 +118,16 @@ export class CompanyListComponent implements OnInit {
   protected readonly roleFilter = signal<OrganizationRole | ''>('');
   protected readonly searchTerm = signal('');
 
+  protected readonly companyAddresses = signal<Address[]>([]);
+  protected readonly addressesLoading = signal(false);
+  protected readonly addressError = signal<string | null>(null);
+  protected readonly addressMode = signal<'list' | 'form'>('list');
+  protected readonly editingAddress = signal<Address | null>(null);
+  protected readonly addressSubmitting = signal(false);
+  protected readonly cityResults = signal<City[]>([]);
+  private readonly cityNames = signal<ReadonlyMap<string, string>>(new Map());
+  private readonly loadedCityCountries = new Set<string>();
+
   protected readonly rangeStart = computed(() =>
     this.page().totalElements === 0 ? 0 : this.page().page * this.page().size + 1,
   );
@@ -93,22 +137,42 @@ export class CompanyListComponent implements OnInit {
 
   protected readonly createForm = this.fb.group({
     legalName: ['', [trimmedRequired, Validators.maxLength(LEGAL_NAME_MAX_LENGTH)]],
-    countryCode: [null as string | null],
+    tradeName: ['', [Validators.maxLength(TRADE_NAME_MAX_LENGTH)]],
     registrationNumber: ['', [Validators.maxLength(REGISTRATION_NUMBER_MAX_LENGTH)]],
+    taxIdentifier: ['', [Validators.maxLength(TAX_IDENTIFIER_MAX_LENGTH)]],
+    email: ['', [Validators.email, Validators.maxLength(EMAIL_MAX_LENGTH)]],
+    phone: ['', [Validators.maxLength(PHONE_MAX_LENGTH)]],
+    countryCode: [null as string | null],
     addressText: ['', [Validators.maxLength(ADDRESS_MAX_LENGTH)]],
     roles: this.rolesGroup(),
   });
 
   protected readonly editForm = this.fb.group({
     legalName: ['', [trimmedRequired, Validators.maxLength(LEGAL_NAME_MAX_LENGTH)]],
-    countryCode: [null as string | null],
+    tradeName: ['', [Validators.maxLength(TRADE_NAME_MAX_LENGTH)]],
     registrationNumber: ['', [Validators.maxLength(REGISTRATION_NUMBER_MAX_LENGTH)]],
+    taxIdentifier: ['', [Validators.maxLength(TAX_IDENTIFIER_MAX_LENGTH)]],
+    email: ['', [Validators.email, Validators.maxLength(EMAIL_MAX_LENGTH)]],
+    phone: ['', [Validators.maxLength(PHONE_MAX_LENGTH)]],
+    countryCode: [null as string | null],
     addressText: ['', [Validators.maxLength(ADDRESS_MAX_LENGTH)]],
     active: [true],
     roles: this.rolesGroup(),
   });
 
+  protected readonly addressForm = this.fb.group({
+    kind: ['BUSINESS' as AddressKind],
+    countryCode: [null as string | null],
+    cityQuery: [''],
+    cityId: [null as string | null],
+    manualCity: ['', [Validators.maxLength(CITY_NAME_MAX_LENGTH)]],
+    addressLine1: ['', [trimmedRequired, Validators.maxLength(ADDRESS_LINE_MAX_LENGTH)]],
+    addressLine2: ['', [Validators.maxLength(ADDRESS_LINE_MAX_LENGTH)]],
+    postalCode: ['', [Validators.maxLength(POSTAL_CODE_MAX_LENGTH)]],
+  });
+
   private readonly search$ = new Subject<string>();
+  private readonly citySearch$ = new Subject<string>();
 
   constructor() {
     this.search$
@@ -117,6 +181,25 @@ export class CompanyListComponent implements OnInit {
         this.searchTerm.set(term);
         this.load(0);
       });
+    this.addressForm.controls.countryCode.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.addressForm.controls.cityId.setValue(null, { emitEvent: false });
+      this.cityResults.set([]);
+    });
+    this.citySearch$
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        switchMap((term) =>
+          term.trim() && this.addressForm.controls.countryCode.value
+            ? this.geography.searchCities(this.addressForm.controls.countryCode.value ?? '', {
+                q: term,
+                size: 10,
+              })
+            : of(null),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((result) => this.cityResults.set(result ? result.items : []));
   }
 
   ngOnInit(): void {
@@ -144,8 +227,12 @@ export class CompanyListComponent implements OnInit {
   protected startCreate(): void {
     this.createForm.reset({
       legalName: '',
-      countryCode: null,
+      tradeName: '',
       registrationNumber: '',
+      taxIdentifier: '',
+      email: '',
+      phone: '',
+      countryCode: null,
       addressText: '',
     });
     this.resetRoles(this.createForm.controls.roles);
@@ -156,8 +243,12 @@ export class CompanyListComponent implements OnInit {
     this.selected.set(organization);
     this.editForm.patchValue({
       legalName: organization.legalName,
-      countryCode: organization.countryCode,
+      tradeName: organization.tradeName ?? '',
       registrationNumber: organization.registrationNumber ?? '',
+      taxIdentifier: organization.taxIdentifier ?? '',
+      email: organization.email ?? '',
+      phone: organization.phone ?? '',
+      countryCode: organization.countryCode,
       addressText: organization.addressText ?? '',
       active: organization.active,
     });
@@ -171,12 +262,17 @@ export class CompanyListComponent implements OnInit {
       organization.roles.length === 0 ? [] : [atLeastOneRole],
     );
     this.editForm.controls.roles.updateValueAndValidity({ emitEvent: false });
+    this.resetAddressEditor();
+    this.loadAddresses(organization.id);
     this.mode.set('edit');
   }
 
   protected cancel(): void {
     this.mode.set('list');
     this.selected.set(null);
+    this.resetAddressEditor();
+    this.companyAddresses.set([]);
+    this.addressError.set(null);
   }
 
   protected submitCreate(): void {
@@ -189,8 +285,12 @@ export class CompanyListComponent implements OnInit {
     this.organizations
       .create({
         legalName: (value.legalName ?? '').trim(),
+        tradeName: blankToNull(value.tradeName),
         countryCode: value.countryCode,
         registrationNumber: blankToNull(value.registrationNumber),
+        taxIdentifier: blankToNull(value.taxIdentifier),
+        email: blankToNull(value.email),
+        phone: blankToNull(value.phone),
         addressText: blankToNull(value.addressText),
         roles: this.checkedRoles(this.createForm.controls.roles),
         active: true,
@@ -220,8 +320,12 @@ export class CompanyListComponent implements OnInit {
     const patch: UpdateOrganizationRequest = {
       expectedVersion: organization.version,
       legalName: (value.legalName ?? '').trim(),
+      tradeName: blankToNull(value.tradeName),
       countryCode: value.countryCode,
       registrationNumber: blankToNull(value.registrationNumber),
+      taxIdentifier: blankToNull(value.taxIdentifier),
+      email: blankToNull(value.email),
+      phone: blankToNull(value.phone),
       addressText: blankToNull(value.addressText),
       active: value.active ?? true,
     };
@@ -269,6 +373,213 @@ export class CompanyListComponent implements OnInit {
         error: (error: unknown) =>
           this.handleError(error, null, 'The company could not be updated.'),
       });
+  }
+
+  protected startAddAddress(): void {
+    this.resetAddressEditor();
+    this.addressForm.patchValue({ countryCode: this.editForm.controls.countryCode.value });
+    this.addressMode.set('form');
+  }
+
+  protected startEditAddress(address: Address): void {
+    this.editingAddress.set(address);
+    this.addressForm.reset({
+      kind: address.kind,
+      countryCode: address.countryCode,
+      cityQuery: '',
+      cityId: address.cityId,
+      manualCity: address.manualCity ?? '',
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2 ?? '',
+      postalCode: address.postalCode ?? '',
+    });
+    this.cityResults.set([]);
+    this.addressMode.set('form');
+    this.resolveCityNames([address]);
+  }
+
+  protected cancelAddress(): void {
+    this.resetAddressEditor();
+  }
+
+  protected onCityQuery(value: string): void {
+    this.citySearch$.next(value);
+  }
+
+  protected selectCity(city: City): void {
+    this.addressForm.patchValue({
+      cityId: city.id,
+      manualCity: '',
+      cityQuery: city.name,
+    });
+    const names = new Map(this.cityNames());
+    names.set(city.id, city.name);
+    this.cityNames.set(names);
+    this.cityResults.set([]);
+  }
+
+  protected onManualCityInput(value: string): void {
+    if (this.addressForm.controls.cityId.value && value.trim().length > 0) {
+      this.addressForm.controls.cityId.setValue(null);
+    }
+  }
+
+  protected submitAddress(): void {
+    const organization = this.selected();
+    if (!organization || this.addressForm.invalid || this.addressSubmitting()) {
+      this.addressForm.markAllAsTouched();
+      return;
+    }
+    const value = this.addressForm.getRawValue();
+    const manualCity = nullIfBlank(value.manualCity);
+    const cityId = manualCity ? null : value.cityId;
+    if (!manualCity && !cityId) {
+      this.notifications.error('Select a city or enter a manual city name.');
+      return;
+    }
+    if (!value.countryCode) {
+      this.notifications.error('Choose the address country.');
+      return;
+    }
+    const editing = this.editingAddress();
+    this.addressSubmitting.set(true);
+    const request = editing
+      ? this.addresses.update(organization.id, editing.id, {
+          expectedVersion: editing.version,
+          kind: value.kind ?? editing.kind,
+          countryCode: value.countryCode,
+          cityId,
+          manualCity,
+          addressLine1: (value.addressLine1 ?? '').trim(),
+          addressLine2: nullIfBlank(value.addressLine2),
+          postalCode: normalizePostalCode(value.postalCode),
+        })
+      : this.addresses.create(organization.id, {
+          kind: value.kind ?? 'BUSINESS',
+          countryCode: value.countryCode,
+          cityId,
+          manualCity,
+          addressLine1: (value.addressLine1 ?? '').trim(),
+          addressLine2: nullIfBlank(value.addressLine2),
+          postalCode: normalizePostalCode(value.postalCode),
+          expectedOrganizationVersion: organization.version,
+        });
+    request.subscribe({
+      next: () => {
+        this.addressSubmitting.set(false);
+        this.notifications.success(editing ? 'Address updated.' : 'Address added.');
+        this.resetAddressEditor();
+        this.loadAddresses(organization.id);
+        this.load(this.page().page);
+      },
+      error: (error: unknown) => {
+        this.addressSubmitting.set(false);
+        this.addressError.set(null);
+        this.handleError(error, this.addressForm, 'The address could not be saved.');
+      },
+    });
+  }
+
+  protected addressCity(address: Address): string {
+    if (address.manualCity) {
+      return address.manualCity;
+    }
+    return this.cityLabel(address.cityId);
+  }
+
+  private loadAddresses(organizationId: string): void {
+    this.addressesLoading.set(true);
+    this.addressError.set(null);
+    this.addresses.list(organizationId).subscribe({
+      next: (items) => {
+        this.companyAddresses.set(items);
+        this.addressesLoading.set(false);
+        this.resolveCityNames(items);
+      },
+      error: () => {
+        this.addressError.set('Unable to load addresses.');
+        this.addressesLoading.set(false);
+      },
+    });
+  }
+
+  private resetAddressEditor(): void {
+    this.addressMode.set('list');
+    this.editingAddress.set(null);
+    this.cityResults.set([]);
+    this.addressForm.reset({
+      kind: 'BUSINESS',
+      countryCode: null,
+      cityQuery: '',
+      cityId: null,
+      manualCity: '',
+      addressLine1: '',
+      addressLine2: '',
+      postalCode: '',
+    });
+  }
+
+  private cityLabel(cityId: string | null): string {
+    if (!cityId) {
+      return '';
+    }
+    return (
+      this.cityNames().get(cityId) ??
+      this.cityResults().find((city) => city.id === cityId)?.name ??
+      'Selected city'
+    );
+  }
+
+  protected phonePlaceholder(form: 'create' | 'edit'): string {
+    const dial = countryDialCode(this.formFor(form).controls['countryCode'].value as string | null);
+    return dial ? `${dial} phone number` : 'Phone number';
+  }
+
+  private resolveCityNames(addresses: Address[]): void {
+    const countries = new Set(
+      addresses
+        .filter((address) => address.cityId && !address.manualCity)
+        .map((address) => address.countryCode),
+    );
+    for (const countryCode of countries) {
+      if (this.loadedCityCountries.has(countryCode)) {
+        continue;
+      }
+      this.loadedCityCountries.add(countryCode);
+      this.fetchCityNames(countryCode, 0);
+    }
+  }
+
+  private fetchCityNames(countryCode: string, page: number): void {
+    this.geography.searchCities(countryCode, { page, size: 100 }).subscribe({
+      next: (result) => {
+        const names = new Map(this.cityNames());
+        for (const city of result.items) {
+          names.set(city.id, city.name);
+        }
+        this.cityNames.set(names);
+        this.applyResolvedCityQuery();
+        if (page + 1 < result.totalPages) {
+          this.fetchCityNames(countryCode, page + 1);
+        }
+      },
+      error: () => this.loadedCityCountries.delete(countryCode),
+    });
+  }
+
+  private applyResolvedCityQuery(): void {
+    const editing = this.editingAddress();
+    if (
+      !editing?.cityId ||
+      this.addressMode() !== 'form' ||
+      this.addressForm.controls.cityQuery.value
+    ) {
+      return;
+    }
+    const name = this.cityNames().get(editing.cityId);
+    if (name) {
+      this.addressForm.controls.cityQuery.setValue(name, { emitEvent: false });
+    }
   }
 
   protected goToPage(page: number): void {

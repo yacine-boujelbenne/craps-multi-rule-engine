@@ -1,0 +1,223 @@
+<app-panel title="Shipment products" subtitle="Products, quantities and weights for this shipment.">
+  @if (loading()) {
+    <p class="muted">Loading products…</p>
+  } @else if (error()) {
+    <div class="alert alert--error" role="alert">{{ error() }}</div>
+  } @else {
+    <section class="shipment-section">
+      <div class="shipment-section__head">
+        <h3 class="shipment-section__title">Shipment products</h3>
+        @if (canWrite()) {
+          <button type="button" class="btn btn--ghost btn--sm" (click)="startAddProduct()">
+            <app-icon name="plus" [size]="16" />
+            Add product
+          </button>
+        }
+      </div>
+
+      @if (projectProducts().length === 0) {
+        <p class="muted">No products recorded for this shipment.</p>
+      } @else {
+        <table class="shipment-table">
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col">Grade</th>
+              <th scope="col">Cartons</th>
+              <th scope="col">Net / gross kg</th>
+              <th scope="col">Price</th>
+              <th scope="col">Lot</th>
+              <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of projectProducts(); track line.id) {
+              <tr>
+                <td data-label="Product">
+                  {{ productName(line.productId) }}
+                  @if (line.appliedGradeCode) {
+                    <span class="muted">· grade {{ line.appliedGradeCode }}</span>
+                  }
+                </td>
+                <td data-label="Grade">{{ line.appliedGradeName ?? '—' }}</td>
+                <td data-label="Cartons">{{ line.cartonCount ?? '—' }}</td>
+                <td data-label="Net / gross kg">
+                  {{ line.netWeightKg ?? '—' }} / {{ line.grossWeightKg ?? '—' }}
+                </td>
+                <td data-label="Price">
+                  @if (line.unitPrice && line.currency) {
+                    {{ line.unitPrice }} {{ line.currency }}
+                  } @else {
+                    —
+                  }
+                </td>
+                <td data-label="Lot">{{ line.lotReference ?? '—' }}</td>
+                <td data-label="Actions" class="col-actions">
+                  @if (canWrite()) {
+                    <button
+                      type="button"
+                      class="btn btn--ghost btn--sm"
+                      (click)="startEditProduct(line)"
+                    >
+                      Edit
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      @if (canWrite()) {
+        <form
+          class="shipment-form shipment-form--grid"
+          [formGroup]="productForm"
+          (ngSubmit)="submitProduct()"
+          novalidate
+        >
+          <h4 class="shipment-form__title">
+            {{ productMode() === 'edit' ? 'Edit product line' : 'Add product line' }}
+          </h4>
+          <label class="field">
+            <span class="field__label">Product <span class="req">*</span></span>
+            <select class="control" formControlName="productId">
+              <option value="">Choose a product</option>
+              @for (product of productOptions(); track product.id) {
+                <option [value]="product.id">{{ product.name }} ({{ product.code }})</option>
+              }
+            </select>
+            @if (showProductError('productId')) {
+              <span class="field__error">Choose a catalogue product.</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Size grade</span>
+            <select class="control" formControlName="productCategoryId">
+              <option [ngValue]="null">No grade</option>
+              @for (category of categories(); track category.id) {
+                <option [ngValue]="category.id">{{ category.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Cartons</span>
+            <input
+              class="control"
+              type="number"
+              [attr.min]="cartonMin"
+              formControlName="cartonCount"
+            />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Quantity</span>
+            <input
+              class="control"
+              type="text"
+              inputmode="decimal"
+              formControlName="quantity"
+              placeholder="0.000"
+            />
+            @if (showProductError('quantity')) {
+              <span class="field__error">Use a decimal with up to three places.</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Quantity unit</span>
+            <input
+              class="control"
+              type="text"
+              formControlName="quantityUnit"
+              [attr.maxlength]="unitMax"
+              placeholder="kg"
+            />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Net weight (kg)</span>
+            <input class="control" type="text" inputmode="decimal" formControlName="netWeightKg" />
+            @if (showProductError('netWeightKg')) {
+              <span class="field__error">Use a decimal with up to three places.</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Gross weight (kg)</span>
+            <input
+              class="control"
+              type="text"
+              inputmode="decimal"
+              formControlName="grossWeightKg"
+            />
+            @if (showProductError('grossWeightKg')) {
+              <span class="field__error">Use a decimal with up to three places.</span>
+            }
+          </label>
+
+          @if (isAdmin()) {
+            <label class="field">
+              <span class="field__label">Unit price</span>
+              <input class="control" type="text" inputmode="decimal" formControlName="unitPrice" />
+              @if (showProductError('unitPrice')) {
+                <span class="field__error">Use a decimal with up to four places.</span>
+              }
+            </label>
+
+            <label class="field">
+              <span class="field__label">Currency</span>
+              <input
+                class="control mono"
+                type="text"
+                formControlName="currency"
+                placeholder="EUR"
+              />
+              @if (showProductError('currency')) {
+                <span class="field__error">Use a three-letter currency code.</span>
+              }
+            </label>
+          } @else {
+            <p class="muted shipment-form__note">
+              Prices are managed by administrators. Existing prices stay unchanged.
+            </p>
+          }
+
+          <label class="field">
+            <span class="field__label">Lot reference</span>
+            <input
+              class="control"
+              type="text"
+              formControlName="lotReference"
+              [attr.maxlength]="lotMax"
+            />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Processing information</span>
+            <input class="control" type="text" formControlName="processingInformation" />
+          </label>
+
+          <div class="shipment-form__actions">
+            @if (productMode() === 'edit') {
+              <button type="button" class="btn btn--ghost" (click)="cancelProductForm()">
+                Cancel
+              </button>
+            }
+            <button type="submit" class="btn btn--primary" [disabled]="savingProduct()">
+              {{
+                savingProduct()
+                  ? 'Saving…'
+                  : productMode() === 'edit'
+                    ? 'Save product line'
+                    : 'Add product line'
+              }}
+            </button>
+          </div>
+        </form>
+      }
+    </section>
+  }
+</app-panel>

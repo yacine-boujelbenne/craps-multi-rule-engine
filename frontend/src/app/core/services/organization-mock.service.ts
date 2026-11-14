@@ -85,6 +85,10 @@ export class OrganizationMockService implements OrganizationService {
       countryCode: input.countryCode ?? null,
       addressText: input.addressText ?? null,
       registrationNumber: input.registrationNumber ?? null,
+      tradeName: input.tradeName ?? null,
+      taxIdentifier: input.taxIdentifier ?? null,
+      email: input.email ?? null,
+      phone: input.phone ?? null,
       roles: [...input.roles],
       active: input.active ?? true,
       createdAt: now,
@@ -114,6 +118,11 @@ export class OrganizationMockService implements OrganizationService {
         patch.registrationNumber !== undefined
           ? patch.registrationNumber
           : current.registrationNumber,
+      tradeName: patch.tradeName !== undefined ? patch.tradeName : current.tradeName,
+      taxIdentifier:
+        patch.taxIdentifier !== undefined ? patch.taxIdentifier : current.taxIdentifier,
+      email: patch.email !== undefined ? patch.email : current.email,
+      phone: patch.phone !== undefined ? patch.phone : current.phone,
       roles: patch.roles !== undefined ? [...patch.roles] : current.roles,
       active: patch.active ?? current.active,
     };
@@ -144,6 +153,10 @@ function sameOrganization(a: Organization, b: Organization): boolean {
     a.countryCode === b.countryCode &&
     a.addressText === b.addressText &&
     a.registrationNumber === b.registrationNumber &&
+    a.tradeName === b.tradeName &&
+    a.taxIdentifier === b.taxIdentifier &&
+    a.email === b.email &&
+    a.phone === b.phone &&
     a.active === b.active &&
     sameRoles(a.roles, b.roles)
   );

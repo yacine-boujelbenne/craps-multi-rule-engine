@@ -1,26 +1,53 @@
 <app-page-header
-  [title]="view() === 'grades' ? 'Grades · ' + (selectedProduct()?.name ?? '') : 'Products'"
+  [title]="
+    view() === 'taxonomy'
+      ? 'Taxonomy categories'
+      : view() === 'grades'
+        ? 'Grades · ' + (selectedProduct()?.name ?? '')
+        : 'Products'
+  "
   [subtitle]="
-    view() === 'grades'
-      ? 'Size grades and their default carton weight and price per kg. Defaults are ADMIN-only and never rewrite existing shipments.'
-      : 'Product catalogue. Each product may define size grades with default carton weights and prices.'
+    view() === 'taxonomy'
+      ? 'Shared product classification. Taxonomy categories are not packing grades.'
+      : view() === 'grades'
+        ? 'Size grades and their default carton weight and price per kg. Defaults are ADMIN-only and never rewrite existing shipments.'
+        : 'Product catalogue. Each product may define size grades with default carton weights and prices.'
   "
   [breadcrumbs]="
-    view() === 'grades'
-      ? [{ label: 'Products' }, { label: selectedProduct()?.name ?? 'Product' }]
-      : [{ label: 'Products' }]
+    view() === 'taxonomy'
+      ? [{ label: 'Products' }, { label: 'Taxonomy' }]
+      : view() === 'grades'
+        ? [{ label: 'Products' }, { label: selectedProduct()?.name ?? 'Product' }]
+        : [{ label: 'Products' }]
   "
 >
   @if (view() === 'list') {
-    <button type="button" class="btn btn--primary" (click)="startCreateProduct()">
-      <app-icon name="plus" [size]="18" />
-      New product
-    </button>
-  } @else if (view() === 'form') {
-    <button type="button" class="btn btn--ghost" (click)="backToProducts()">
-      <app-icon name="arrow-left" [size]="18" />
-      Back to products
-    </button>
+    @if (canEdit()) {
+      <button type="button" class="btn btn--ghost" (click)="openTaxonomy()">
+        <app-icon name="sliders" [size]="18" />
+        Taxonomy
+      </button>
+      <button type="button" class="btn btn--primary" (click)="startCreateProduct()">
+        <app-icon name="plus" [size]="18" />
+        New product
+      </button>
+    }
+  } @else if (view() === 'taxonomy') {
+    @if (categoryMode() === 'form') {
+      <button type="button" class="btn btn--ghost" (click)="cancelCategoryForm()">
+        <app-icon name="arrow-left" [size]="18" />
+        Back to categories
+      </button>
+    } @else {
+      <button type="button" class="btn btn--primary" (click)="startCreateCategory()">
+        <app-icon name="plus" [size]="18" />
+        New category
+      </button>
+      <button type="button" class="btn btn--ghost" (click)="backFromTaxonomy()">
+        <app-icon name="arrow-left" [size]="18" />
+        Back to products
+      </button>
+    }
   } @else {
     <button type="button" class="btn btn--ghost" (click)="backToProducts()">
       <app-icon name="arrow-left" [size]="18" />
@@ -87,7 +114,66 @@
             <span class="field__error">Use 6 to 10 digits.</span>
           }
         </label>
+
+        <label class="field">
+          <span class="field__label">Default measurement unit</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="defaultMeasurementUnit"
+            [attr.maxlength]="measurementUnitMaxLength"
+            placeholder="kg"
+          />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Processing method</span>
+          <input
+            class="control"
+            type="text"
+            formControlName="processingMethod"
+            [attr.maxlength]="processingMethodMaxLength"
+          />
+        </label>
       </div>
+
+      <label class="field">
+        <span class="field__label">Description</span>
+        <textarea class="control" rows="3" formControlName="description"></textarea>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Storage requirements</span>
+        <textarea
+          class="control"
+          rows="2"
+          formControlName="storageRequirements"
+          [attr.maxlength]="storageRequirementsMaxLength"
+        ></textarea>
+      </label>
+
+      <fieldset class="taxonomy">
+        <legend class="taxonomy__legend">Taxonomy categories</legend>
+        @if (taxonomyCategories().length === 0) {
+          <p class="muted">No taxonomy categories defined yet.</p>
+        } @else {
+          <div class="taxonomy__options">
+            @for (category of taxonomyCategories(); track category.id) {
+              <label class="taxonomy__option">
+                <input
+                  type="checkbox"
+                  [checked]="isCategorySelected(category.id)"
+                  (change)="toggleCategory(category.id, $any($event.target).checked)"
+                />
+                <span>
+                  <strong>{{ category.name }}</strong>
+                  <span class="muted mono">({{ category.code }})</span>
+                </span>
+              </label>
+            }
+          </div>
+        }
+      </fieldset>
 
       @if (selectedProduct()) {
         <label class="toggle">
@@ -314,6 +400,150 @@
       }
     </app-panel>
   }
+} @else if (view() === 'taxonomy') {
+  @if (categoryMode() === 'form') {
+    <app-panel
+      [title]="selectedCategory() ? 'Edit category' : 'New category'"
+      subtitle="Categories group products for reporting and filtering; they are not packing grades."
+    >
+      <form
+        class="catalog-form"
+        [formGroup]="categoryForm"
+        (ngSubmit)="submitCategory()"
+        novalidate
+      >
+        <div class="catalog-form__grid">
+          <label class="field">
+            <span class="field__label">Code <span class="req">*</span></span>
+            <input
+              class="control mono"
+              type="text"
+              formControlName="code"
+              [attr.maxlength]="categoryCodeMaxLength"
+              autocomplete="off"
+            />
+            @if (showError('code', categoryForm)) {
+              <span class="field__error">Use letters, digits, . _ / + -</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field__label">Name <span class="req">*</span></span>
+            <input
+              class="control"
+              type="text"
+              formControlName="name"
+              [attr.maxlength]="categoryNameMaxLength"
+            />
+            @if (showError('name', categoryForm)) {
+              <span class="field__error">Enter the category name.</span>
+            }
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Description</span>
+          <textarea
+            class="control"
+            rows="2"
+            formControlName="description"
+            [attr.maxlength]="categoryDescriptionMaxLength"
+          ></textarea>
+        </label>
+
+        <div class="catalog-form__actions">
+          <button type="button" class="btn btn--ghost" (click)="cancelCategoryForm()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn--primary" [disabled]="categorySubmitting()">
+            {{
+              categorySubmitting()
+                ? 'Saving…'
+                : selectedCategory()
+                  ? 'Save changes'
+                  : 'Create category'
+            }}
+          </button>
+        </div>
+      </form>
+    </app-panel>
+  } @else {
+    @if (taxonomyError()) {
+      <div class="alert alert--error" role="alert">{{ taxonomyError() }}</div>
+    }
+    @if (taxonomyLoading()) {
+      <p class="muted">Loading categories…</p>
+    } @else {
+      <div class="table-card">
+        <table class="catalog-table">
+          <caption class="sr-only">
+            Taxonomy categories
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (category of taxonomyPage().items; track category.id) {
+              <tr>
+                <td data-label="Code" class="mono">{{ category.code }}</td>
+                <td data-label="Name">{{ category.name }}</td>
+                <td data-label="Description">{{ category.description ?? '—' }}</td>
+                <td data-label="Actions" class="col-actions">
+                  <button
+                    type="button"
+                    class="btn btn--ghost btn--sm"
+                    (click)="startEditCategory(category)"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="empty-cell">No taxonomy categories found.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        @if (taxonomyPage().totalPages > 1) {
+          <nav class="pagination" aria-label="Taxonomy pagination">
+            <span class="pagination__summary">
+              Showing {{ taxonomyPage().totalElements }} category(ies)
+            </span>
+            <div class="pagination__controls">
+              <button
+                type="button"
+                class="btn btn--ghost"
+                [disabled]="taxonomyPage().page === 0 || taxonomyLoading()"
+                (click)="goToCategoryPage(taxonomyPage().page - 1)"
+              >
+                Previous
+              </button>
+              <span class="pagination__page"
+                >Page {{ taxonomyPage().page + 1 }} of {{ taxonomyPage().totalPages }}</span
+              >
+              <button
+                type="button"
+                class="btn btn--ghost"
+                [disabled]="
+                  taxonomyPage().page >= taxonomyPage().totalPages - 1 || taxonomyLoading()
+                "
+                (click)="goToCategoryPage(taxonomyPage().page + 1)"
+              >
+                Next
+              </button>
+            </div>
+          </nav>
+        }
+      </div>
+    }
+  }
 } @else {
   <div class="filters">
     <div class="filters__search">
@@ -325,6 +555,15 @@
         (input)="onSearch($any($event.target).value)"
       />
     </div>
+    <label class="filters__field">
+      <span class="field__label">Taxonomy category</span>
+      <select class="control" (change)="onCategoryFilterChange($any($event.target).value)">
+        <option value="">All categories</option>
+        @for (category of taxonomyCategories(); track category.id) {
+          <option [value]="category.id">{{ category.name }}</option>
+        }
+      </select>
+    </label>
     <label class="filters__toggle">
       <input
         type="checkbox"
@@ -385,13 +624,15 @@
                   >
                     Grades
                   </button>
-                  <button
-                    type="button"
-                    class="btn btn--ghost btn--sm"
-                    (click)="startEditProduct(product)"
-                  >
-                    Edit
-                  </button>
+                  @if (canEdit()) {
+                    <button
+                      type="button"
+                      class="btn btn--ghost btn--sm"
+                      (click)="startEditProduct(product)"
+                    >
+                      Edit
+                    </button>
+                  }
                 </div>
               </td>
             </tr>

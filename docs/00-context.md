@@ -3,6 +3,8 @@
 ## Goal
 One platform that manages the whole export documentation file per shipment. Each document is a form filled in chronological order. Documents are linked: a value entered or imported once is reused and checked everywhere.
 
+Owner-confirmed main objective (2026-11-14): build the usable app step by step until complete. First, ADMIN enters and maintains all partner companies. Then ADMIN creates a project/deal (one shipment), selects those companies, and reuses their stored information to fill its forms. Those forms later produce documents that can be generated and printed. Complete and verify each user-visible step before moving to the next; company information must not require repeated entry, and later company edits must preserve previously generated document snapshots.
+
 ## Documents
 1. Invoice (facture)
 2. Packing list (linked to the invoice)

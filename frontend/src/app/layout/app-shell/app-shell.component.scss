@@ -86,3 +86,8 @@
     padding: var(--space-4) var(--space-3) var(--space-6);
   }
 }
+
+@media print {
+  .shell__sidebar, app-topbar, .skip-link, .shell__backdrop { display: none !important; }
+  .shell, .shell__main, .shell__content, .shell__container { display: block; margin: 0; padding: 0; width: auto; max-width: none; height: auto; overflow: visible; }
+}

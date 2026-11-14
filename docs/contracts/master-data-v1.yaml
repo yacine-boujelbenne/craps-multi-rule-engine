@@ -1,10 +1,12 @@
 openapi: 3.0.3
 info:
   title: SeaExport master data and shipment product links
-  version: 1.1.0
-  description: Additive Phase 2 contract. Existing /api/projects v2 JSON and applied V1-V3 migrations remain unchanged.
-    Master-data changes preserve project/document versions. Project relationship mutations require the current expectedProjectVersion
-    and increment project.version exactly once for effective changes; no-ops do not increment.
+  version: 1.2.0
+  description: Additive Phase 2 contract. Existing /api/projects v2 JSON and applied
+    V1-V3 migrations remain unchanged. Master-data changes preserve project/document
+    versions. Project relationship mutations require the current expectedProjectVersion
+    and increment project.version exactly once for effective changes; no-ops do not
+    increment.
 servers:
 - url: http://localhost:8080
 security:
@@ -14,6 +16,7 @@ paths:
     get:
       operationId: listIsoCountries
       summary: List active ISO 3166-1 alpha-2 countries
+      description: Return active countries ordered by lower(name), then code, ascending.
       responses:
         '200':
           description: Complete application country reference list.
@@ -27,6 +30,9 @@ paths:
     get:
       operationId: searchCities
       summary: Search active cities within a country
+      description: Return active cities for an active country, ordered by lower(name),
+        then id, ascending. An unknown or inactive country returns 404; an active
+        country with no matching cities returns an empty page.
       parameters:
       - in: path
         name: countryCode
@@ -37,6 +43,9 @@ paths:
       - in: query
         name: q
         required: false
+        description: Optional case-insensitive literal name prefix. Trim surrounding
+          whitespace and reject empty or whitespace-only input. Percent and underscore
+          are literal characters, not search wildcards. Omission applies no name filter.
         schema:
           type: string
           minLength: 1
@@ -61,9 +70,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CityPage'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/organizations/{organizationId}/addresses:
     get:
       operationId: listCompanyAddresses
+      description: Ready accounts with directory read permission may list all addresses,
+        including inactive ones, ordered by address_kind, created_at, then id ascending.
+        Unknown organization returns 404. No query parameters.
       parameters:
       - $ref: '#/components/parameters/OrganizationId'
       responses:
@@ -77,6 +93,16 @@ paths:
                   $ref: '#/components/schemas/Address'
     post:
       operationId: createCompanyAddress
+      description: ADMIN or OPERATOR may create an address. Lock the organization
+        and, when supplied, check expectedOrganizationVersion against its current
+        metadata version; mismatch returns 409. Address creation starts address.version
+        at zero and does not change organization.version, project versions or document
+        snapshots. Require exactly one of cityId or nonblank manualCity. The selected
+        country and city must be active, and the city's country must match countryCode;
+        invalid selections return 400 on the relevant field. Trim text, normalize
+        blank optional text to null, and preserve postalCode as text including leading
+        zeros. Existing inactive organizations remain editable under the same master-data
+        permission rules.
       parameters:
       - $ref: '#/components/parameters/OrganizationId'
       requestBody:
@@ -94,196 +120,15 @@ paths:
                 $ref: '#/components/schemas/Address'
         '400':
           $ref: '#/components/responses/InvalidRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/factories:
-    get:
-      operationId: searchFactories
-      parameters:
-      - in: query
-        name: companyId
-        schema:
-          type: string
-          format: uuid
-      - in: query
-        name: q
-        schema:
-          type: string
-          minLength: 1
-          maxLength: 250
-      - in: query
-        name: page
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - in: query
-        name: size
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      responses:
-        '200':
-          description: Searchable active factory page.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FactoryPage'
-    post:
-      operationId: createFactory
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FactoryWrite'
-      responses:
-        '201':
-          description: Factory created.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Factory'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/factories/{factoryId}:
-    get:
-      operationId: getFactory
-      parameters:
-      - $ref: '#/components/parameters/FactoryId'
-      responses:
-        '200':
-          description: Factory metadata and current eligible approval.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Factory'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    patch:
-      operationId: updateFactory
-      parameters:
-      - $ref: '#/components/parameters/FactoryId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FactoryPatch'
-      responses:
-        '200':
-          description: Updated factory.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Factory'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /api/factories/{factoryId}/approvals:
-    get:
-      operationId: listFactoryApprovals
-      parameters:
-      - $ref: '#/components/parameters/FactoryId'
-      responses:
-        '200':
-          description: Append-only approval reference history, newest first.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/FactoryApproval'
-    post:
-      operationId: recordFactoryApproval
-      parameters:
-      - $ref: '#/components/parameters/FactoryId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FactoryApprovalWrite'
-      responses:
-        '201':
-          description: Immutable approval revision recorded.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FactoryApproval'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '409':
-          $ref: '#/components/responses/Conflict'
-  /api/projects/{projectId}/factory:
-    parameters:
-    - &id006
-      in: path
-      name: projectId
-      required: true
-      schema:
-        type: string
-        format: uuid
-    get:
-      operationId: getProjectFactory
-      responses:
-        '200':
-          description: Selected factory and approval snapshot source.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProjectFactory'
-        '404': &id001
-          description: Company, factory, city, product or project does not exist or is inaccessible.
-          content:
-            application/problem+json:
-              schema:
-                $ref: ./projects-v2.yaml#/components/schemas/Problem
-    put:
-      operationId: selectProjectFactory
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProjectFactoryWrite'
-      responses:
-        '200':
-          description: Factory selected; shared project revision increments once.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProjectFactory'
-        '400': &id003
-          description: Invalid field, shape, date, role, city/country or quantity.
-          content:
-            application/problem+json:
-              schema:
-                $ref: ./projects-v2.yaml#/components/schemas/Problem
-        '403': &id004
-          description: Account role, form grant or CSRF check failed.
-          content:
-            application/problem+json:
-              schema:
-                $ref: ./projects-v2.yaml#/components/schemas/Problem
-        '404': *id001
-        '409': &id002
-          description: Stale project/entity version, duplicate approval namespace/reference, or approval revision
-            conflict.
-          content:
-            application/problem+json:
-              schema:
-                $ref: ./projects-v2.yaml#/components/schemas/Problem
       x-authorized-roles:
       - ADMIN
-      - OPERATOR with PROJECT_SETUP
+      - OPERATOR
   /api/projects/{projectId}/products:
     get:
       operationId: listProjectProducts
@@ -300,6 +145,13 @@ paths:
                   $ref: '#/components/schemas/ProjectProduct'
     post:
       operationId: addProjectProduct
+      description: ADMIN or an operator assigned PACKING_LIST may enter shipment measurements
+        and select an active configured grade belonging to the product. Only ADMIN
+        may supply unitPrice or currency, including null. Reject operator-supplied
+        price fields with 403. On grade selection, lock and copy its current version,
+        code, name, carton net-weight default and price/currency into the shipment
+        row. Missing defaults stay null. Explicit ADMIN price fields replace the copied
+        price pair. Never calculate or overwrite measured weights from defaults.
       parameters:
       - $ref: '#/components/parameters/ProjectId'
       requestBody:
@@ -321,13 +173,27 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409': *id002
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR with PACKING_LIST permission
   /api/projects/{projectId}/products/{projectProductId}:
     patch:
       operationId: updateProjectProduct
+      description: Only ADMIN may supply unitPrice or currency, including unchanged
+        values or null; reject operator attempts with 403. Omitted fields retain stored
+        values. Retain applied defaults when the grade ID is unchanged; selecting
+        a different active configured grade copies its current defaults as on creation.
+        Clearing the grade clears applied grade metadata and price defaults unless
+        ADMIN explicitly supplies a replacement price pair. Never refresh existing
+        shipment values merely because a directory grade changes. Price and currency
+        must be supplied together and either both null or both populated. Applied
+        metadata is read-only; reject client writes.
       parameters:
       - $ref: '#/components/parameters/ProjectId'
       - in: path
@@ -355,7 +221,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409': *id002
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR with PACKING_LIST permission
@@ -393,8 +264,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompanyPage'
-        '401': *id003
-        '403': *id004
+        '401':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
@@ -413,17 +294,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Company'
-        '400': *id003
-        '401': *id003
-        '403': *id004
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '401':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
   /api/organizations/{organizationId}:
     parameters:
-    - &id005
-      in: path
+    - in: path
       name: organizationId
       required: true
       schema:
@@ -438,7 +338,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Company'
-        '404': *id001
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
     patch:
       operationId: updateCompany
       requestBody:
@@ -454,16 +359,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Company'
-        '400': *id003
-        '403': *id004
-        '404': *id001
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
   /api/products:
     get:
       operationId: listProducts
+      description: Preserve existing code/name literal-prefix search, name/id ordering,
+        pagination and ADMIN-only includeInactive behavior. categoryId filters taxonomy
+        assignments (not packing grades); unknown IDs yield an empty page. Return
+        both legacy name and commercialName with identical values, metadata, all assigned
+        taxonomy categories including inactive ones, and active packing grades. Reject
+        unknown/repeated query parameters.
       parameters:
       - in: query
         name: q
@@ -476,6 +407,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: query
+        name: includeInactive
+        schema:
+          type: boolean
+          default: false
       - in: query
         name: page
         schema:
@@ -496,10 +432,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductPage'
-        '401': *id003
-        '403': *id004
+        '401':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
     post:
       operationId: createProduct
+      description: ADMIN or OPERATOR may create ordinary product metadata. Accept
+        legacy name or commercialName; require at least one and reject differing trimmed
+        values when both occur. Persist one canonical product.name and return both
+        aliases. Default omitted defaultMeasurementUnit to KG; explicit null/blank
+        is invalid. Preserve legacy active input, code validation and uniqueness.
+        Trim text and normalize nullable blank metadata to null. No grade/default/price
+        fields are accepted here; their endpoints remain ADMIN-only.
       requestBody:
         required: true
         content:
@@ -513,9 +466,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
-        '400': *id003
-        '403': *id004
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
@@ -529,6 +497,9 @@ paths:
         format: uuid
     get:
       operationId: getProduct
+      description: Ready directory readers may read active or inactive products. Include
+        both identical name aliases, metadata, all assigned taxonomy categories including
+        inactive ones, and active packing grades. No query parameters.
       responses:
         '200':
           description: Product details, taxonomy categories and packing grades.
@@ -536,9 +507,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
-        '404': *id001
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
     patch:
       operationId: updateProduct
+      description: ADMIN or OPERATOR may edit product metadata with expectedVersion.
+        Merge supplied fields only; either name alias updates the same canonical field,
+        and conflicting aliases return 400. Null clears nullable metadata; name/code/defaultMeasurementUnit/active
+        are non-null. Lock product; stale versions return 409. Effective changes increment
+        product.version once and audit transactionally; no-ops do neither. Existing
+        project lines, applied defaults, prices and document snapshots remain unchanged.
+        Reject unknown/query fields.
       requestBody:
         required: true
         content:
@@ -552,17 +535,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
-        '400': *id003
-        '403': *id004
-        '404': *id001
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
   /api/product-taxonomy-categories:
     get:
       operationId: listProductTaxonomyCategories
+      description: Ready directory readers may search active taxonomy categories by
+        a trimmed case-insensitive literal code/name prefix, with q limited to 200
+        characters. Order by lower(name), then id ascending. includeInactive=true
+        requires ADMIN; default false. Reject unknown/repeated query parameters.
       parameters:
+      - in: query
+        name: includeInactive
+        schema:
+          type: boolean
+          default: false
       - in: query
         name: q
         schema:
@@ -591,6 +603,11 @@ paths:
                 $ref: '#/components/schemas/ProductTaxonomyCategoryPage'
     post:
       operationId: createProductTaxonomyCategory
+      description: ADMIN or OPERATOR may create an active category at version zero.
+        Trim required nonblank code/name and normalize blank optional description
+        to null. Code uniqueness is case-sensitive as stored; duplicate returns 409.
+        Audit insert without changing product/project versions or historical documents.
+        No query parameters.
       requestBody:
         required: true
         content:
@@ -604,9 +621,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductTaxonomyCategory'
-        '400': *id003
-        '403': *id004
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
@@ -620,6 +652,12 @@ paths:
         format: uuid
     patch:
       operationId: updateProductTaxonomyCategory
+      description: ADMIN or OPERATOR may edit/deactivate a category. Lock and check
+        expectedVersion (409 when stale), merge supplied fields and preserve omitted
+        fields. Null clears description only. Effective changes increment category.version
+        once and audit; no-ops do neither. Preserve existing assignments and project/document
+        history. Unknown category returns 404; duplicate code returns 409. No query
+        parameters.
       requestBody:
         required: true
         content:
@@ -633,10 +671,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductTaxonomyCategory'
-        '400': *id003
-        '403': *id004
-        '404': *id001
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
@@ -650,6 +708,9 @@ paths:
         format: uuid
     get:
       operationId: listProductCategoryAssignments
+      description: Ready directory readers may list all assigned categories, including
+        inactive ones, ordered by lower(name),id ascending. Missing product returns
+        404; no assignments returns an empty array. No query parameters.
       responses:
         '200':
           description: Product taxonomy assignments.
@@ -661,12 +722,22 @@ paths:
                   $ref: '#/components/schemas/ProductTaxonomyCategory'
     put:
       operationId: replaceProductCategoryAssignments
+      description: ADMIN or OPERATOR may atomically replace the taxonomy set. Lock
+        product, check expectedProductVersion, and lock category rows in sorted UUID
+        order. Reject duplicate/null/malformed IDs with 400; newly added categories
+        must exist and be active (400). Existing inactive assignments may be retained
+        or removed. Empty set clears all. A changed set increments product.version
+        once and audits assignment changes plus the product revision; reordered or
+        identical sets are no-ops. Return the ordered category array; read product
+        GET for the new product version. No project/document/grade/default changes
+        or query parameters. Missing product returns 404; stale version returns 409.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required:
               - expectedProductVersion
               - categoryIds
@@ -690,16 +761,41 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProductTaxonomyCategory'
-        '400': *id003
-        '403': *id004
-        '404': *id001
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
   /api/organizations/{organizationId}/addresses/{addressId}:
     parameters:
-    - *id005
+    - in: path
+      name: organizationId
+      required: true
+      schema:
+        type: string
+        format: uuid
     - in: path
       name: addressId
       required: true
@@ -708,6 +804,18 @@ paths:
         format: uuid
     patch:
       operationId: updateCompanyAddress
+      description: ADMIN or OPERATOR may update or deactivate an address. Lock organization
+        then address; require expectedVersion for that address, returning 409 when
+        stale. An address outside the organization returns 404. Merge only supplied
+        fields; null clears nullable fields. Validate exactly one city selection after
+        merging; switching between cityId and manualCity requires explicitly clearing
+        the old selection. Validate active country/city only when the effective location
+        selection changes; retain unchanged historical inactive references during
+        other edits. New or changed invalid selections return 400. Effective changes
+        increment only address.version once and audit the address in the same transaction;
+        no-ops change neither version nor audit. Organization/project versions, legacy
+        addressText and existing document snapshots remain unchanged. Unknown or read-only
+        fields and query parameters return 400.
       requestBody:
         required: true
         content:
@@ -721,13 +829,135 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Address'
-        '400': *id003
-        '403': *id004
-        '404': *id001
-        '409': *id002
+        '400':
+          description: Invalid request or unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '404':
+          description: Not found
+          content:
+            application/problem+json:
+              schema:
+                type: object
+        '409':
+          description: Revision conflict
+          content:
+            application/problem+json:
+              schema:
+                type: object
       x-authorized-roles:
       - ADMIN
       - OPERATOR
+  /api/ports:
+    get:
+      operationId: listPorts
+      responses:
+        '200':
+          description: Active ports stored in the database
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    countryCode:
+                      type: string
+                    unLocode:
+                      type: string
+                      nullable: true
+                    active:
+                      type: boolean
+    post:
+      operationId: createPort
+      description: ADMIN or OPERATOR creates a real port record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - name
+              - countryCode
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                countryCode:
+                  type: string
+                  pattern: ^[A-Z]{2}$
+      responses:
+        '201':
+          description: Port saved
+  /api/projects/{projectId}/forms:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getShipmentForms
+      responses:
+        '200':
+          description: Saved shipment form data and field definitions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentForms'
+  /api/projects/{projectId}/forms/{key}:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    - in: path
+      name: key
+      required: true
+      schema:
+        type: string
+    put:
+      operationId: saveShipmentForm
+      description: Requires the corresponding form assignment or ADMIN. Replaces only
+        this form; project revision and audit update atomically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - expectedProjectVersion
+              - data
+              properties:
+                expectedProjectVersion:
+                  type: integer
+                  minimum: 0
+                data:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    additionalProperties:
+                      type: string
+                      maxLength: 2000
+      responses:
+        '200':
+          description: Saved shipment form data and field definitions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipmentForms'
 components:
   securitySchemes:
     sessionAuth:
@@ -735,20 +965,45 @@ components:
       in: cookie
       name: JSESSIONID
   parameters:
-    OrganizationId: *id005
-    FactoryId:
+    OrganizationId:
       in: path
-      name: factoryId
+      name: organizationId
       required: true
       schema:
         type: string
         format: uuid
-    ProjectId: *id006
+    ProjectId:
+      in: path
+      name: projectId
+      required: true
+      schema:
+        type: string
+        format: uuid
   responses:
-    InvalidRequest: *id003
-    Forbidden: *id004
-    NotFound: *id001
-    Conflict: *id002
+    InvalidRequest:
+      description: Invalid request or unauthenticated
+      content:
+        application/problem+json:
+          schema:
+            type: object
+    Forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            type: object
+    NotFound:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+            type: object
+    Conflict:
+      description: Revision conflict
+      content:
+        application/problem+json:
+          schema:
+            type: object
   schemas:
     Country:
       type: object
@@ -860,37 +1115,38 @@ components:
           format: int64
     AddressWrite:
       type: object
+      additionalProperties: false
       required:
       - kind
       - countryCode
       - addressLine1
       properties:
-        kind: &id038
+        kind:
           type: string
           enum:
           - BUSINESS
           - FACTORY
           - BILLING
           - OTHER
-        countryCode: &id039
+        countryCode:
           type: string
           pattern: ^[A-Z]{2}$
-        cityId: &id040
+        cityId:
           type: string
           format: uuid
           nullable: true
-        manualCity: &id041
+        manualCity:
           type: string
           maxLength: 200
           nullable: true
-        addressLine1: &id042
+        addressLine1:
           type: string
           maxLength: 250
-        addressLine2: &id043
+        addressLine2:
           type: string
           maxLength: 250
           nullable: true
-        postalCode: &id044
+        postalCode:
           type: string
           maxLength: 40
           nullable: true
@@ -898,6 +1154,8 @@ components:
           type: integer
           minimum: 0
           format: int64
+          description: Optional current company metadata version guard; address creation
+            never increments it.
     Company:
       type: object
       required:
@@ -963,6 +1221,8 @@ components:
             - IMPORTER
         addresses:
           type: array
+          description: All structured addresses, including inactive ones, in the same
+            order as the address-list endpoint.
           items:
             $ref: '#/components/schemas/Address'
         active:
@@ -974,6 +1234,7 @@ components:
       - version
       - code
       - commercialName
+      - name
       - scientificName
       - hsCode
       - description
@@ -981,8 +1242,12 @@ components:
       - storageRequirements
       - defaultMeasurementUnit
       - categories
+      - grades
       - active
       properties:
+        name:
+          type: string
+          description: Legacy alias identical to commercialName.
         id:
           type: string
           format: uuid
@@ -1055,219 +1320,87 @@ components:
           type: integer
           format: int64
     ProductGrade:
-      description: Existing per-product configurable product_category used by packing grades.
+      description: Existing per-product configurable product_category used by packing
+        grades.
       allOf:
       - $ref: ./commercial-setup-v1.yaml#/components/schemas/GradeResponse
-    Factory:
+    ProjectProduct:
       type: object
       required:
       - id
-      - companyId
-      - name
-      - addressId
-      - establishmentDetails
-      - active
+      - productId
       - version
-      - currentApproval
+      - projectVersion
       properties:
         id:
           type: string
           format: uuid
-        companyId:
+        productId:
           type: string
           format: uuid
-        name:
-          type: string
-          maxLength: 250
-        addressId:
+        productCategoryId:
           type: string
           format: uuid
           nullable: true
-        establishmentDetails:
+        cartonCount:
+          type: integer
+          minimum: 1
+          nullable: true
+        quantity:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+        quantityUnit:
+          type: string
+          maxLength: 30
+          nullable: true
+        netWeightKg:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+        grossWeightKg:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+        unitPrice:
+          type: string
+          pattern: ^[0-9]{1,14}(\.[0-9]{1,4})?$
+          nullable: true
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+          nullable: true
+        lotReference:
+          type: string
+          maxLength: 150
+          nullable: true
+        processingInformation:
           type: string
           nullable: true
-        active:
-          type: boolean
+        appliedGradeVersion:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+        appliedGradeCode:
+          type: string
+          nullable: true
+          readOnly: true
+        appliedGradeName:
+          type: string
+          nullable: true
+          readOnly: true
+        appliedCartonNetKg:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+          readOnly: true
         version:
           type: integer
           format: int64
-        currentApproval:
-          allOf:
-          - $ref: '#/components/schemas/FactoryApproval'
-          nullable: true
-    FactoryPage:
-      type: object
-      required:
-      - items
-      - page
-      - size
-      - totalElements
-      - totalPages
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Factory'
-        page:
-          type: integer
-        size:
-          type: integer
-        totalElements:
-          type: integer
-          format: int64
-        totalPages:
-          type: integer
-    FactoryWrite:
-      type: object
-      required:
-      - companyId
-      - name
-      properties:
-        companyId:
-          type: string
-          format: uuid
-        name: &id007
-          type: string
-          maxLength: 250
-        addressId: &id008
-          type: string
-          format: uuid
-          nullable: true
-        establishmentDetails: &id009
-          type: string
-          nullable: true
-    FactoryPatch:
-      type: object
-      required:
-      - expectedVersion
-      properties:
-        expectedVersion:
-          type: integer
-          minimum: 0
-          format: int64
-        name: *id007
-        addressId: *id008
-        establishmentDetails: *id009
-        active:
-          type: boolean
-    FactoryApproval:
-      type: object
-      required:
-      - id
-      - factoryId
-      - issuingAuthority
-      - numberingSystem
-      - issuingCountryCode
-      - approvalReference
-      - validFrom
-      - validUntil
-      - recordedAt
-      - recordedBy
-      properties:
-        id:
-          type: string
-          format: uuid
-        factoryId:
-          type: string
-          format: uuid
-        issuingAuthority:
-          type: string
-          maxLength: 250
-        numberingSystem:
-          type: string
-          maxLength: 120
-        issuingCountryCode:
-          type: string
-          pattern: ^[A-Z]{2}$
-        approvalReference:
-          type: string
-          maxLength: 150
-        validFrom:
-          type: string
-          format: date
-          nullable: true
-        validUntil:
-          type: string
-          format: date
-          nullable: true
-        recordedAt:
-          type: string
-          format: date-time
-        recordedBy:
-          type: string
-          format: uuid
-          nullable: true
-    FactoryApprovalWrite:
-      type: object
-      required:
-      - issuingAuthority
-      - numberingSystem
-      - issuingCountryCode
-      - approvalReference
-      properties:
-        issuingAuthority:
-          type: string
-          maxLength: 250
-        numberingSystem:
-          type: string
-          maxLength: 120
-        issuingCountryCode:
-          type: string
-          pattern: ^[A-Z]{2}$
-        approvalReference:
-          type: string
-          maxLength: 150
-        validFrom:
-          type: string
-          format: date
-          nullable: true
-        validUntil:
-          type: string
-          format: date
-          nullable: true
-    ProjectFactory:
-      type: object
-      required:
-      - projectId
-      - projectVersion
-      - factoryId
-      - producerCompanyId
-      - approval
-      properties:
-        projectId:
-          type: string
-          format: uuid
         projectVersion:
           type: integer
           format: int64
-        factoryId:
-          type: string
-          format: uuid
-        producerCompanyId:
-          type: string
-          format: uuid
-        approval:
-          allOf:
-          - $ref: '#/components/schemas/FactoryApproval'
-          nullable: true
-    ProjectProduct:
-      allOf:
-      - $ref: '#/components/schemas/ProjectProductWrite'
-      - type: object
-        required:
-        - id
-        - version
-        - projectVersion
-        properties:
-          id:
-            type: string
-            format: uuid
-          version:
-            type: integer
-            format: int64
-          projectVersion:
-            type: integer
-            format: int64
     ProjectProductWrite:
       type: object
       required:
@@ -1277,43 +1410,46 @@ components:
         productId:
           type: string
           format: uuid
-        productCategoryId: &id010
+        productCategoryId:
           type: string
           format: uuid
           nullable: true
-        cartonCount: &id011
+        cartonCount:
           type: integer
           minimum: 1
           nullable: true
-        quantity: &id012
+        quantity:
           type: string
-          pattern: ^[0-9]{1,15}(\\.[0-9]{1,3})?$
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
           nullable: true
-        quantityUnit: &id013
+        quantityUnit:
           type: string
           maxLength: 30
           nullable: true
-        netWeightKg: &id014
+        netWeightKg:
           type: string
-          pattern: ^[0-9]{1,15}(\\.[0-9]{1,3})?$
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
           nullable: true
-        grossWeightKg: &id015
+        grossWeightKg:
           type: string
-          pattern: ^[0-9]{1,15}(\\.[0-9]{1,3})?$
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
           nullable: true
-        unitPrice: &id016
+        unitPrice:
           type: string
-          pattern: ^[0-9]{1,14}(\\.[0-9]{1,4})?$
+          pattern: ^[0-9]{1,14}(\.[0-9]{1,4})?$
+          description: ADMIN-only shipment price; operator presence is rejected with
+            403, including null.
           nullable: true
-        currency: &id017
+        currency:
           type: string
           pattern: ^[A-Z]{3}$
+          description: ADMIN-only price currency; must be supplied together with unitPrice.
           nullable: true
-        lotReference: &id018
+        lotReference:
           type: string
           maxLength: 150
           nullable: true
-        processingInformation: &id019
+        processingInformation:
           type: string
           nullable: true
         expectedProjectVersion:
@@ -1334,47 +1470,79 @@ components:
           type: integer
           minimum: 0
           format: int64
-        productCategoryId: *id010
-        cartonCount: *id011
-        quantity: *id012
-        quantityUnit: *id013
-        netWeightKg: *id014
-        grossWeightKg: *id015
-        unitPrice: *id016
-        currency: *id017
-        lotReference: *id018
-        processingInformation: *id019
+        productCategoryId:
+          type: string
+          format: uuid
+          nullable: true
+        cartonCount:
+          type: integer
+          minimum: 1
+          nullable: true
+        quantity:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+        quantityUnit:
+          type: string
+          maxLength: 30
+          nullable: true
+        netWeightKg:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+        grossWeightKg:
+          type: string
+          pattern: ^[0-9]{1,15}(\.[0-9]{1,3})?$
+          nullable: true
+        unitPrice:
+          type: string
+          pattern: ^[0-9]{1,14}(\.[0-9]{1,4})?$
+          description: ADMIN-only shipment price; operator presence is rejected with
+            403, including null.
+          nullable: true
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+          description: ADMIN-only price currency; must be supplied together with unitPrice.
+          nullable: true
+        lotReference:
+          type: string
+          maxLength: 150
+          nullable: true
+        processingInformation:
+          type: string
+          nullable: true
     CompanyWrite:
       type: object
       required:
       - legalName
       - roles
       properties:
-        legalName: &id020
+        legalName:
           type: string
           maxLength: 250
-        tradeName: &id021
+        tradeName:
           type: string
           maxLength: 250
           nullable: true
-        registrationNumber: &id022
+        registrationNumber:
           type: string
           maxLength: 100
           nullable: true
-        taxIdentifier: &id023
+        taxIdentifier:
           type: string
           maxLength: 100
           nullable: true
-        email: &id024
+        email:
           type: string
           format: email
           maxLength: 254
           nullable: true
-        phone: &id025
+        phone:
           type: string
           maxLength: 50
           nullable: true
-        roles: &id026
+        roles:
           type: array
           minItems: 1
           uniqueItems: true
@@ -1404,13 +1572,36 @@ components:
           type: integer
           minimum: 0
           format: int64
-        legalName: *id020
-        tradeName: *id021
-        registrationNumber: *id022
-        taxIdentifier: *id023
-        email: *id024
-        phone: *id025
-        roles: *id026
+        legalName:
+          type: string
+          maxLength: 250
+        tradeName:
+          type: string
+          maxLength: 250
+          nullable: true
+        registrationNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+        taxIdentifier:
+          type: string
+          maxLength: 100
+          nullable: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          nullable: true
+        phone:
+          type: string
+          maxLength: 50
+          nullable: true
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/CompanyRole'
         active:
           type: boolean
     CompanyPage:
@@ -1437,55 +1628,99 @@ components:
           type: integer
     ProductWrite:
       type: object
+      additionalProperties: false
       required:
       - code
-      - commercialName
+      anyOf:
+      - required:
+        - name
+      - required:
+        - commercialName
       properties:
-        code: &id027
+        name:
           type: string
-          maxLength: 80
-        commercialName: &id028
-          type: string
+          minLength: 1
           maxLength: 250
-        scientificName: &id029
+        active:
+          type: boolean
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+        commercialName:
+          type: string
+          minLength: 1
+          maxLength: 250
+        scientificName:
           type: string
           maxLength: 250
           nullable: true
-        hsCode: &id030
+        hsCode:
           type: string
           pattern: ^[0-9]{6,10}$
           nullable: true
-        description: &id031
+        description:
           type: string
           nullable: true
-        processingMethod: &id032
+        processingMethod:
           type: string
           maxLength: 150
           nullable: true
-        storageRequirements: &id033
+        storageRequirements:
           type: string
           maxLength: 500
           nullable: true
-        defaultMeasurementUnit: &id034
+        defaultMeasurementUnit:
           type: string
+          minLength: 1
           maxLength: 30
     ProductPatch:
       type: object
+      additionalProperties: false
       required:
       - expectedVersion
       properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 250
         expectedVersion:
           type: integer
           minimum: 0
           format: int64
-        code: *id027
-        commercialName: *id028
-        scientificName: *id029
-        hsCode: *id030
-        description: *id031
-        processingMethod: *id032
-        storageRequirements: *id033
-        defaultMeasurementUnit: *id034
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/+-]{0,79}$
+        commercialName:
+          type: string
+          minLength: 1
+          maxLength: 250
+        scientificName:
+          type: string
+          maxLength: 250
+          nullable: true
+        hsCode:
+          type: string
+          pattern: ^[0-9]{6,10}$
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        processingMethod:
+          type: string
+          maxLength: 150
+          nullable: true
+        storageRequirements:
+          type: string
+          maxLength: 500
+          nullable: true
+        defaultMeasurementUnit:
+          type: string
+          minLength: 1
+          maxLength: 30
         active:
           type: boolean
     ProductPage:
@@ -1512,22 +1747,26 @@ components:
           type: integer
     ProductTaxonomyCategoryWrite:
       type: object
+      additionalProperties: false
       required:
       - code
       - name
       properties:
-        code: &id035
+        code:
           type: string
+          minLength: 1
           maxLength: 80
-        name: &id036
+        name:
           type: string
+          minLength: 1
           maxLength: 200
-        description: &id037
+        description:
           type: string
           maxLength: 500
           nullable: true
     ProductTaxonomyCategoryPatch:
       type: object
+      additionalProperties: false
       required:
       - expectedVersion
       properties:
@@ -1535,9 +1774,20 @@ components:
           type: integer
           minimum: 0
           format: int64
-        code: *id035
-        name: *id036
-        description: *id037
+        code:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        active:
+          type: boolean
     ProductTaxonomyCategoryPage:
       type: object
       required:
@@ -1572,21 +1822,9 @@ components:
         categoryId:
           type: string
           format: uuid
-    ProjectFactoryWrite:
-      type: object
-      required:
-      - expectedProjectVersion
-      - factoryId
-      properties:
-        expectedProjectVersion:
-          type: integer
-          minimum: 0
-          format: int64
-        factoryId:
-          type: string
-          format: uuid
     AddressPatch:
       type: object
+      additionalProperties: false
       required:
       - expectedVersion
       properties:
@@ -1594,10 +1832,88 @@ components:
           type: integer
           minimum: 0
           format: int64
-        kind: *id038
-        countryCode: *id039
-        cityId: *id040
-        manualCity: *id041
-        addressLine1: *id042
-        addressLine2: *id043
-        postalCode: *id044
+        kind:
+          type: string
+          enum:
+          - BUSINESS
+          - FACTORY
+          - BILLING
+          - OTHER
+        countryCode:
+          type: string
+          pattern: ^[A-Z]{2}$
+        cityId:
+          type: string
+          format: uuid
+          nullable: true
+        manualCity:
+          type: string
+          maxLength: 200
+          nullable: true
+        addressLine1:
+          type: string
+          maxLength: 250
+        addressLine2:
+          type: string
+          maxLength: 250
+          nullable: true
+        postalCode:
+          type: string
+          maxLength: 40
+          nullable: true
+        active:
+          type: boolean
+    ShipmentForms:
+      type: object
+      required:
+      - projectVersion
+      - sections
+      - data
+      properties:
+        projectVersion:
+          type: integer
+          format: int64
+        sections:
+          type: array
+          items:
+            type: object
+            required:
+            - key
+            - title
+            - repeatable
+            - fields
+            properties:
+              key:
+                type: string
+              title:
+                type: string
+              repeatable:
+                type: boolean
+              fields:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - key
+                  - label
+                  - type
+                  properties:
+                    key:
+                      type: string
+                    label:
+                      type: string
+                    type:
+                      type: string
+                      enum:
+                      - text
+                      - date
+                      - decimal
+                      - country
+        data:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties:
+                type: string
