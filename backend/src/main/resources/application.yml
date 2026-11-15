@@ -16,6 +16,9 @@ spring:
     clean-disabled: true
     validate-on-migrate: true
     baseline-on-migrate: false
+    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:exportdocs}}}
+    user: ${SPRING_FLYWAY_USER:${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:exportdocs}}}
+    password: ${SPRING_FLYWAY_PASSWORD:${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD}}}
   jackson:
     deserialization:
       fail-on-unknown-properties: true
@@ -29,8 +32,8 @@ server:
       cookie:
         http-only: true
         same-site: lax
-  address: ${SERVER_ADDRESS:127.0.0.1}
-  port: ${SERVER_PORT:8080}
+  address: ${SERVER_ADDRESS:0.0.0.0}
+  port: ${PORT:${SERVER_PORT:8080}}
   error:
     include-message: never
     include-stacktrace: never
