@@ -12,3 +12,4 @@ uploads/
 
 # Local verification evidence and recovered workspace files
 .local/
+.neon

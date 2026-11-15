@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: exportdocs-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SERVER_ADDRESS
+        value: 0.0.0.0
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: SPRING_FLYWAY_URL
+        sync: false
+      - key: SPRING_FLYWAY_USER
+        sync: false
+      - key: SPRING_FLYWAY_PASSWORD
+        sync: false
